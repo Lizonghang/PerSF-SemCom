@@ -67,6 +67,8 @@ def get_args_parser():
                         help="return the fpn if there is the tag")
 
     # for semsal merge
+    parser.add_argument('--merge_mode', choices=['weighted_sum', 'matrix_mul'], default='weighted_sum',
+                        help='function to merge two attention maps, default to be simply sum')
     parser.add_argument('--alpha', default=0.5, type=float,
                         help='weight to merge RelTR and saliency map')
 

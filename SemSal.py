@@ -53,8 +53,14 @@ class SemSal:
         return output
 
     def _merge_function(self, mapA, mapB):
-        alpha_ = self.args.alpha
-        merged_ = alpha_ * mapA + (1 - alpha_) * mapB
+        merge_mode = self.args.merge_mode
+        if merge_mode == "weighted_sum":
+            alpha_ = self.args.alpha
+            merged_ = alpha_ * mapA + (1 - alpha_) * mapB
+        elif merge_mode == "matrix_mul":
+            merged_ = mapA * mapB
+        else:
+            merged_ = mapA + mapB
         return merged_
 
     def _merge_outputs(self, reltr_output, saliency_output):
