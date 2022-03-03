@@ -2,6 +2,7 @@ import argparse
 from RelTR import RelTR
 from Saliency import Saliency
 from SemSal import SemSal
+from TextMatch import TextMatcher
 
 
 def get_args_parser():
@@ -9,9 +10,9 @@ def get_args_parser():
 
     # common
     parser.add_argument('--input_dir', type=str, default='data/',
-                        help="Directory of inference images")
+                        help="directory of inference images")
     parser.add_argument('--output_dir', type=str, default='output/',
-                        help="Directory of output files (e.g., images, logs)")
+                        help="directory of output files (e.g., images, logs)")
     parser.add_argument('--device_reltr', default='cuda:0',
                         help='device to use in reltr inference')
     parser.add_argument('--device_saliency', default='cpu',
@@ -63,13 +64,32 @@ def get_args_parser():
     parser.add_argument('--resume', default='RelTR/ckpt/checkpoint0149.pth',
                         help='resume from checkpoint')
     parser.add_argument('--return_interm_layers', action='store_true',
-                        help="Return the fpn if there is the tag")
+                        help="return the fpn if there is the tag")
 
+    # for semsal merge
+    parser.add_argument('--alpha', default=0.5, type=float,
+                        help='weight to merge RelTR and saliency map')
+
+    # for semantic communication
+    parser.add_argument('--drop_mode', choices=['no_drop', 'random_drop', 'schedule'],
+                        default='random_drop', help='whether and how to drop packets')
+
+    # for text matcher
+    parser.add_argument('--repeat_exp', default=100, type=int,
+                        help='number of repeat experiments to evaluate match score')
     return parser
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[get_args_parser()])
     args = parser.parse_args()
+
     semsal = SemSal(RelTR, Saliency, args)
-    semsal.fit(resume_pkl=False, save_pkl=True, visualize=True)
+    semsal_output = semsal.fit(resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
+
+    text_matcher = TextMatcher(semsal_output, args.drop_mode)
+    for exp_iter in range(args.repeat_exp):
+        text_matcher.reset()
+        match_scores = text_matcher.fit()
+        text_matcher.eval(match_scores)
+    print(text_matcher.output)

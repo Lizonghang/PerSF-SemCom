@@ -52,6 +52,11 @@ class SemSal:
         print(">> Pkl outputs are loaded")
         return output
 
+    def _merge_function(self, mapA, mapB):
+        alpha_ = self.args.alpha
+        merged_ = alpha_ * mapA + (1 - alpha_) * mapB
+        return merged_
+
     def _merge_outputs(self, reltr_output, saliency_output):
         # extract meta info
         attn_size = reltr_output["attn_size"]
@@ -71,7 +76,7 @@ class SemSal:
             # rescale saliency attention map
             sal_attn = saliency_output[pid]["attn"]
             sal_attn = resize(sal_attn, attn_size)
-            sal_attn = sal_attn / sal_attn.sum()
+            sal_attn = sal_attn / sal_attn.max()
             merged_output[pid]["sal_attn"] = sal_attn
 
             priority_arr = np.array([])
@@ -84,10 +89,12 @@ class SemSal:
                 # obtain attention map from reltr
                 reltr_attn_sub = np.array(item["attn_weights_sub"])
                 reltr_attn_obj = np.array(item["attn_weights_obj"])
+                reltr_attn_sub = reltr_attn_sub / reltr_attn_sub.max()
+                reltr_attn_obj = reltr_attn_obj / reltr_attn_obj.max()
 
                 # merge attention map of reltr and saliency model
-                merged_attn_sub = reltr_attn_sub * sal_attn
-                merged_attn_obj = reltr_attn_obj * sal_attn
+                merged_attn_sub = self._merge_function(reltr_attn_sub, sal_attn)
+                merged_attn_obj = self._merge_function(reltr_attn_obj, sal_attn)
 
                 # crop attention area according to bboxes
                 [[xmin, ymin], [xmax, ymax]] = item["attn_bbox_sub"]
@@ -99,7 +106,8 @@ class SemSal:
                 max_attn_sub = cropped_attn_sub.max()
                 max_attn_obj = cropped_attn_obj.max()
                 rel_confidence = item["rel_confidence"]
-                priority = max_attn_sub * max_attn_obj * rel_confidence
+                # priority = max_attn_sub * max_attn_obj * rel_confidence
+                priority = max_attn_sub * max_attn_obj
 
                 merged_output[pid][qid]["merged_attn_sub"] = merged_attn_sub
                 merged_output[pid][qid]["merged_attn_obj"] = merged_attn_obj
@@ -225,9 +233,10 @@ class SemSal:
                 fp.write("\n")
             fp.write("\n")
 
-    def fit(self, resume_pkl=False, save_pkl=False, visualize=False):
+    def fit(self, resume_pkl=False, save_pkl=False, save_txt=False, visualize=False):
         input_dir = self.args.input_dir
 
+        output = {}
         for img_name in os.listdir(input_dir):
             img_path = os.path.join(input_dir, img_name)
             img_idx = img_name.split('.')[0]
@@ -251,4 +260,8 @@ class SemSal:
                         self.args.output_dir)
 
             merged_output = self._run_semsal(reltr_output, saliency_output, visualize=visualize)
-            self._save_to_text(merged_output)
+
+            output[img_name] = merged_output
+            if save_txt: self._save_to_text(merged_output)
+
+        return output

@@ -5,7 +5,7 @@ This project is a combination of [RelTR](https://github.com/yrcong/RelTR) and [S
 ## Requirements
 
 * nvidia-docker
-* cuda>=1.0
+* cuda>=10.0
 
 ## Build Environment Via Docker
 

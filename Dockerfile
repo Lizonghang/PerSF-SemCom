@@ -48,6 +48,10 @@ RUN conda install -y python=3.7 && \
 # ==================================================================
 # install tensorflow, pytorch and utils
 # ------------------------------------------------------------------
+RUN pip install scikit-learn==0.21.3 \
+                jieba==0.42.1 \
+                easydict==1.9
+
 RUN pip install torch==1.6.0 \
                 torchvision==0.7.0
 
