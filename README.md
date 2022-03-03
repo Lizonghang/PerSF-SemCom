@@ -1,6 +1,6 @@
 # Project: Semantics Saliency
 
-This project is a combination of [RelTR](https://github.com/yrcong/RelTR) and [Saliency](https://github.com/alexanderkroner/saliency).
+This project is a combination of [RelTR](https://github.com/yrcong/RelTR), [Saliency](https://github.com/alexanderkroner/saliency), and [TextMatch](https://github.com/MachineLP/TextMatch).
 
 ## Requirements
 
