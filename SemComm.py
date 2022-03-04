@@ -26,7 +26,7 @@ class SemComm:
         return query_ids_received, query_ids_dropped
 
     def _drop_packet_with_power_scheduler(self, query_ids, priority):
-        """Sort according to attention priority and strategically dropping."""
+        """Drop by power scheduler and sort by saliency priority."""
         drop_prob = PDPget(8000, priority)
         select_vars = torch.rand(query_ids.size()) > torch.Tensor(drop_prob)
 
