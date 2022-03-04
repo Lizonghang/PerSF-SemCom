@@ -72,6 +72,8 @@ def get_args_parser():
                         help='function to merge two attention maps, default to be simply sum')
     parser.add_argument('--alpha', default=0.5, type=float,
                         help='weight to merge RelTR and saliency map')
+    parser.add_argument('--num_persons', type=int, default=7,
+                        help='number of persons to simulate, only 7 is supported currently')
 
     # for semantic communication
     parser.add_argument('--drop_mode', choices=['no_drop', 'random_drop', 'schedule'],
@@ -87,12 +89,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[get_args_parser()])
     args = parser.parse_args()
 
+    assert args.num_persons == 7, \
+        "Only 7 persons are supported in this version"
+
     # Merge subject and object saliency
     semsal = SemSal(RelTR, Saliency, args)
-    semsal_output = semsal.fit(resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
+    # first run
+    semsal_output = semsal.fit(resume_pkl=False, save_pkl=True, save_txt=True, visualize=True)
+    # run with saved pickle files
+    # semsal_output = semsal.fit(resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
 
     sem_comm = SemComm(args)
-    text_matcher = TextMatcher(semsal_output)
+    text_matcher = TextMatcher(semsal_output, args)
 
     for exp_iter in range(args.repeat_exp):
         # Send packets through loseless semantic comm network
@@ -103,4 +111,5 @@ if __name__ == '__main__':
         match_scores = text_matcher.fit()
         text_matcher.eval(match_scores)
 
-    print(text_matcher.output)
+    result = text_matcher.output
+    print([result[pid]["mean_max_scores"] for pid in result.keys()])

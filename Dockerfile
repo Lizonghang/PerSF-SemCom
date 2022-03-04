@@ -70,6 +70,4 @@ RUN pip install tensorflow==1.13.1 \
 
 USER root
 
-COPY . /root
-
 WORKDIR /root

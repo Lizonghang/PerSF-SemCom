@@ -1,15 +1,18 @@
+import random
 import numpy as np
 from .textmatch.models.text_embedding.model_factory_sklearn import ModelFactory
 
+random.seed(0)
+
 
 class TextMatcher:
-    def __init__(self, original_output):
-        self.num_persons = 7
-        assert self.num_persons <= 7, "Maximum number of persons: 7"
+    def __init__(self, original_output, args):
+        self.num_persons = args.num_persons
+        self.args = args
         self.mf = ModelFactory()
         self.triplet_dict = self._collect_all_words(original_output)
         self.triplet_dict_per_person = None
-        self.query_text = self._automatically_generate_query_text(original_output)
+        self.query_text = self._collect_query_text_candidate(original_output)
         self.mf.init(words_dict=self.triplet_dict, update=True)
         self.output = {}
         self.repeat_counter = 0
@@ -33,10 +36,10 @@ class TextMatcher:
             triplet_dict_all[idx] = triplet_list_all[idx]
         return triplet_dict_all
 
-    def _automatically_generate_query_text(self, semsal_output):
+    def _collect_query_text_candidate(self, semsal_output):
         query_text = {}
         for pid in range(self.num_persons):
-            query_text[pid] = {}
+            query_text[pid] = []
 
         for img_name in semsal_output.keys():
             merged_output_ = semsal_output[img_name]
@@ -46,7 +49,7 @@ class TextMatcher:
                 priority = np.array(merged_output_[pid]["priority"])
                 query_ids_sorted = query_ids[np.argsort(-priority)]
                 qid = query_ids_sorted[0].item()
-                query_text[pid][img_name] = merged_output_["reltr_output"][qid]["semantic"]
+                query_text[pid].append(merged_output_["reltr_output"][qid]["semantic"])
 
         return query_text
 
@@ -77,10 +80,10 @@ class TextMatcher:
         output = {}
         for pid in range(self.num_persons):
             personal_preds = self.triplet_dict_per_person[pid]
-            output[pid] = {}
+            query_text = random.choice(self.query_text[pid])
+            output[pid] = {"query_text": query_text}
 
             for img_name, item in personal_preds.items():
-                query_text = self.query_text[pid][img_name]
                 triplet_received = item["triplet_received"]
                 triplet_dropped = item["triplet_dropped"]
 
@@ -94,7 +97,6 @@ class TextMatcher:
                     triplet_scores.append((triplet, 0.))
 
                 output[pid][img_name] = {
-                    "query_text": query_text,
                     "scores": triplet_scores,
                     "dropped": triplet_dropped}
 
@@ -103,19 +105,28 @@ class TextMatcher:
     def eval(self, match_scores, score_func=np.max):
         for pid in range(self.num_persons):
             personal_scores = match_scores[pid]
+            img_names = []
 
             if pid not in self.output:
                 self.output[pid] = {}
 
             for img_name, item in personal_scores.items():
+                if img_name == "query_text":
+                    continue
+                img_names.append(img_name)
+
                 scores = [score for triplet, score in item["scores"]]
 
                 if img_name not in self.output[pid]:
                     self.output[pid][img_name] = {}
 
-                self.output[pid][img_name]["match_score"] = round(
-                    (self.output[pid][img_name].get("match_score", 0.)
+                self.output[pid][img_name]["max_score"] = round(
+                    (self.output[pid][img_name].get("max_score", 0.)
                      * self.repeat_counter + score_func(scores)) \
                     / (self.repeat_counter + 1), 5)
+
+            self.output[pid]["mean_max_scores"] = np.round(np.mean(
+                [self.output[pid][img_name]["max_score"]
+                 for img_name in img_names]), 5)
 
         self.repeat_counter += 1

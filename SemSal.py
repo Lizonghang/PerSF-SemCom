@@ -8,21 +8,19 @@ from skimage.transform import resize
 
 class SemSal:
     def __init__(self, RelTR, Saliency, args):
-        self.num_persons = 7
-        assert self.num_persons <= 7, "Maximum number of persons: 7"
+        self.num_persons = args.num_persons
         self.args = args
         self.RelTR = RelTR
         self.Saliency = Saliency
 
-    def _run_reltr(self, img_path, visualize=False):
+    def _run_reltr(self, img_path):
         if not hasattr(self, "reltr"):
             self.reltr = self.RelTR(self.args)
 
         output = self.reltr.fit(img_path)
-        if visualize: self.reltr.visualize(output)
         return output
 
-    def _run_multi_saliency(self, img_path, visualize=False):
+    def _run_multi_saliency(self, img_path):
         if not hasattr(self, "saliency_list"):
             self.saliency_list = [self.Saliency(pid, self.args)
                                   for pid in range(self.num_persons)]
@@ -33,8 +31,6 @@ class SemSal:
             tf.keras.backend.clear_session()
             # run inference
             output.append(self.saliency_list[pid].fit(img_path))
-
-        if visualize: self.saliency_list[0].visualize(output)
 
         return output
 
@@ -255,9 +251,9 @@ class SemSal:
                     self.args.output_dir)
             else:
                 # RelTR inference
-                reltr_output = self._run_reltr(img_path, visualize=False)
+                reltr_output = self._run_reltr(img_path)
                 # Saliency inference (7 persons)
-                saliency_output = self._run_multi_saliency(img_path, visualize=False)
+                saliency_output = self._run_multi_saliency(img_path)
                 # save outputs
                 if save_pkl:
                     self._save_pkl(

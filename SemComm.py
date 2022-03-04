@@ -9,7 +9,7 @@ setup_seed(2)
 class SemComm:
     def __init__(self, args):
         self.args = args
-        self.num_persons = 7
+        self.num_persons = args.num_persons
         self.drop_mode = args.drop_mode
 
     def _no_packet_drop(self, query_ids):

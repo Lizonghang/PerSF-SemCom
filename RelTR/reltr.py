@@ -133,7 +133,6 @@ class RelTR:
             img_w, img_h = img_size
 
             results = {
-                "img": img,
                 "img_path": img_path,
                 "queries": keep_queries,
                 "img_size": (img_h, img_w),
