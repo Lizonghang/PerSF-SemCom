@@ -51,9 +51,11 @@ class SemComm:
                     # Drop packets with random probability
                     query_ids_received, query_ids_dropped = self._drop_packet_with_random_probability(query_ids)
                 elif self.drop_mode == "schedule":
+                    # Drop packets by power scheduler, according to saliency priority
                     priority = np.array(merged_output_[pid]["priority"])
                     query_ids_received, query_ids_dropped = self._drop_packet_with_power_scheduler(query_ids, priority)
                 else:
+                    # Drop packets randomly, without considering saliency
                     query_ids_received, query_ids_dropped = self._no_packet_drop(query_ids)
 
                 triplet_received = [merged_output_["reltr_output"][qid.item()]['semantic']
