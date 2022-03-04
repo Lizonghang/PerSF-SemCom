@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.0-devel
+FROM lizonghango00o1/matlab-python:ubuntu-desktop-cuda10.0
 
 # ==================================================================
 # apt tools
@@ -30,20 +30,20 @@ RUN APT_INSTALL="apt install -y --no-install-recommends" && \
         htop
 
 # ==================================================================
-# install conda
+# install conda (NOTE: Already installed in the base image, python 3.6.8)
 # ------------------------------------------------------------------
-RUN curl -o ~/anaconda.sh https://mirrors.bfsu.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-    chmod +x ~/anaconda.sh && \
-    ~/anaconda.sh -b -p /opt/conda && \
-    rm ~/anaconda.sh
-
-ENV PATH /opt/conda/bin:$PATH
+#RUN curl -o /root/anaconda.sh https://mirrors.bfsu.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+#    chmod +x /root/anaconda.sh && \
+#    /root/anaconda.sh -bu -p /opt/conda && \
+#    rm /root/anaconda.sh
+#
+#ENV PATH /opt/conda/bin:$PATH
 
 # ==================================================================
 # install python
 # ------------------------------------------------------------------
-RUN conda install -y python=3.7 && \
-    conda update --all
+#RUN conda install -y python=3.7 && \
+#    conda update --all
 
 # ==================================================================
 # install tensorflow, pytorch and utils
@@ -67,6 +67,8 @@ RUN pip install tensorflow==1.13.1 \
 
 # NOTE: NEED TO INSTALL cudnn-10.0-linux-x64-v7.4.2.24.tgz
 #   MANUALLY IF TENSORFLOW-GPU IS REQUIRED.
+
+USER root
 
 COPY . /root
 

@@ -17,7 +17,7 @@ Then, the docker image can be built by:
 >
 > $ sudo docker run -it --rm --gpus all semsal bash
 > 
-> (container) $ python main.py
+> (container) $ python -W ignore main.py
 
 The process loads images from ``data/`` and saves output images and logs at ``output/``.
 
@@ -28,7 +28,7 @@ Simply pull the pre-built docker image and run a container:
 > 
 > $ sudo docker run -it --rm --gpus all lizonghango00o1/semsal:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0 bash
 > 
-> (container) $ python main.py
+> (container) $ python -W ignore main.py
 
 NOTE: You can use your own input images and synchronize output files to the host machine by mounting the host path to the container path:
 

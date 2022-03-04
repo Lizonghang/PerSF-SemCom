@@ -3,6 +3,7 @@ from RelTR import RelTR
 from Saliency import Saliency
 from SemSal import SemSal
 from TextMatch import TextMatcher
+from SemComm import SemComm
 
 
 def get_args_parser():
@@ -74,7 +75,7 @@ def get_args_parser():
 
     # for semantic communication
     parser.add_argument('--drop_mode', choices=['no_drop', 'random_drop', 'schedule'],
-                        default='random_drop', help='whether and how to drop packets')
+                        default='schedule', help='whether and how to drop packets')
 
     # for text matcher
     parser.add_argument('--repeat_exp', default=100, type=int,
@@ -86,12 +87,20 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[get_args_parser()])
     args = parser.parse_args()
 
+    # Merge subject and object saliency
     semsal = SemSal(RelTR, Saliency, args)
     semsal_output = semsal.fit(resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
 
-    text_matcher = TextMatcher(semsal_output, args.drop_mode)
+    sem_comm = SemComm(args)
+    text_matcher = TextMatcher(semsal_output)
+
     for exp_iter in range(args.repeat_exp):
-        text_matcher.reset()
+        # Send packets through loseless semantic comm network
+        sent = sem_comm.send(semsal_output)
+
+        # Evaluate match score on the user side
+        text_matcher.receive(sent)
         match_scores = text_matcher.fit()
         text_matcher.eval(match_scores)
+
     print(text_matcher.output)
