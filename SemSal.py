@@ -36,6 +36,7 @@ class SemSal:
         return output
 
     def _save_pkl(self, objs, names, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
         for obj, name in zip(objs, names):
             with open(os.path.join(output_dir, name), "wb") as fp:
                 pickle.dump(obj, fp)
