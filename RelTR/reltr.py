@@ -74,7 +74,7 @@ class RelTR:
         img = Image.open(img_path)
         img_size = img.size
 
-        print(">> Start testing with RelTR model...")
+        # print(">> Start testing with RelTR model...")
 
         # mean-std normalize the input image (batch-size: 1)
         input = self.transform(img).unsqueeze(0)

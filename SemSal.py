@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from skimage.transform import resize
+from PIL import Image
 
 
 class SemSal:
@@ -158,7 +159,8 @@ class SemSal:
 
                 # show reltr bboxes
                 ax = axs[idx][2]
-                ax.imshow(output["reltr_output"]["img"])
+                img = Image.open(output["saliency_output"][pid]["img_path"])
+                ax.imshow(img)
                 ((sxmin, symin), (sxmax, symax)) = output["reltr_output"][query_id]["img_bbox_sub"]
                 ((oxmin, oymin), (oxmax, oymax)) = output["reltr_output"][query_id]["img_bbox_obj"]
                 ax.add_patch(plt.Rectangle((sxmin, symin), sxmax - sxmin, symax - symin,
@@ -237,9 +239,12 @@ class SemSal:
 
     def fit(self, resume_pkl=False, save_pkl=False, save_txt=False, visualize=False):
         input_dir = self.args.input_dir
-
         output = {}
-        for img_name in os.listdir(input_dir):
+
+        imgs_to_process = [self.args.img_name] if self.args.img_name else os.listdir(input_dir)
+        for img_name in imgs_to_process:
+            print(f"Processing image: {img_name}")
+
             img_path = os.path.join(input_dir, img_name)
             img_idx = img_name.split('.')[0]
             reltr_name = f"reltr_output_{img_idx}.pkl"

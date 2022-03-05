@@ -12,6 +12,8 @@ def get_args_parser():
     # common
     parser.add_argument('--input_dir', type=str, default='data/',
                         help="directory of inference images")
+    parser.add_argument('--img_name', type=str, default='',
+                        help='only the specified image file will be processed')
     parser.add_argument('--output_dir', type=str, default='output/',
                         help="directory of output files (e.g., images, logs)")
     parser.add_argument('--device_reltr', default='cuda:0',
@@ -80,7 +82,7 @@ def get_args_parser():
                         default='schedule', help='whether and how to drop packets')
 
     # for text matcher
-    parser.add_argument('--repeat_exp', default=100, type=int,
+    parser.add_argument('--repeat_exp', default=10, type=int,
                         help='number of repeat experiments to evaluate match score')
     return parser
 

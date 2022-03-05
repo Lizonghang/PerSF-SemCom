@@ -53,7 +53,7 @@ class Saliency:
 
         saliency_map = postprocess_saliency_map(predicted_maps[0], original_shape[0])
 
-        print(">> Start testing with %s %s model..." % (self.dataset.upper(), self.device))
+        # print(">> Start testing with %s %s model..." % (self.dataset.upper(), self.device))
 
         with tf.Session() as sess:
             sess.run([init_op])

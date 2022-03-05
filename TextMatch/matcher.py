@@ -2,8 +2,6 @@ import random
 import numpy as np
 from .textmatch.models.text_embedding.model_factory_sklearn import ModelFactory
 
-random.seed(0)
-
 
 class TextMatcher:
     def __init__(self, original_output, args):
@@ -80,6 +78,8 @@ class TextMatcher:
         output = {}
         for pid in range(self.num_persons):
             personal_preds = self.triplet_dict_per_person[pid]
+
+            random.seed(pid)
             query_text = random.choice(self.query_text[pid])
             output[pid] = {"query_text": query_text}
 
