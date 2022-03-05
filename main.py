@@ -1,3 +1,4 @@
+import random
 import argparse
 from RelTR import RelTR
 from Saliency import Saliency
@@ -82,6 +83,8 @@ def get_args_parser():
     # for semantic communication
     parser.add_argument('--drop_mode', choices=['no_drop', 'random_drop', 'schedule'],
                         default='schedule', help='whether and how to drop packets')
+    parser.add_argument('--power', type=int, default=8000,
+                        help='transfer power of sender')
 
     # for text matcher
     parser.add_argument('--repeat_exp', default=10, type=int,
@@ -101,15 +104,19 @@ if __name__ == '__main__':
 
     if args.resume_pkl:
         # run with saved pickle files
-        semsal_output = semsal.fit(resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
+        semsal_output, suggest_query_text = semsal.fit(
+            resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
     else:
         # first run
-        semsal_output = semsal.fit(resume_pkl=False, save_pkl=True, save_txt=True, visualize=True)
+        semsal_output, suggest_query_text = semsal.fit(
+            resume_pkl=False, save_pkl=True, save_txt=True, visualize=True)
 
     sem_comm = SemComm(args)
-    text_matcher = TextMatcher(semsal_output, args)
+    text_matcher = TextMatcher(semsal_output, suggest_query_text, args)
 
     for exp_iter in range(args.repeat_exp):
+        random.seed(exp_iter)
+
         # Send packets through loseless semantic comm network
         sent = sem_comm.send(semsal_output)
 

@@ -4,13 +4,13 @@ from .textmatch.models.text_embedding.model_factory_sklearn import ModelFactory
 
 
 class TextMatcher:
-    def __init__(self, original_output, args):
+    def __init__(self, original_output, suggest_query_text, args):
         self.num_persons = args.num_persons
         self.args = args
         self.mf = ModelFactory()
         self.triplet_dict = self._collect_all_words(original_output)
         self.triplet_dict_per_person = None
-        self.query_text = self._collect_query_text_candidate(original_output)
+        self.query_text = suggest_query_text
         self.mf.init(words_dict=self.triplet_dict, update=True)
         self.output = {}
         self.repeat_counter = 0
@@ -33,23 +33,6 @@ class TextMatcher:
         for idx in range(len(triplet_list_all)):
             triplet_dict_all[idx] = triplet_list_all[idx]
         return triplet_dict_all
-
-    def _collect_query_text_candidate(self, semsal_output):
-        query_text = {}
-        for pid in range(self.num_persons):
-            query_text[pid] = []
-
-        for img_name in semsal_output.keys():
-            merged_output_ = semsal_output[img_name]
-            query_ids = merged_output_["queries"]
-
-            for pid in range(self.num_persons):
-                priority = np.array(merged_output_[pid]["priority"])
-                query_ids_sorted = query_ids[np.argsort(-priority)]
-                qid = query_ids_sorted[0].item()
-                query_text[pid].append(merged_output_["reltr_output"][qid]["semantic"])
-
-        return query_text
 
     def _reformat_received_output(self, received_output):
         triplet_dict_per_person = {}
@@ -78,8 +61,6 @@ class TextMatcher:
         output = {}
         for pid in range(self.num_persons):
             personal_preds = self.triplet_dict_per_person[pid]
-
-            random.seed(pid)
             query_text = random.choice(self.query_text[pid])
             output[pid] = {"query_text": query_text}
 

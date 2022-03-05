@@ -49,10 +49,10 @@ class SemSal:
         print(">> Pkl outputs are loaded")
         return output
 
-    def _merge_function(self, mapA, mapB):
+    def _merge_function(self, mapA, mapB, alpha=-1):
         merge_mode = self.args.merge_mode
         if merge_mode == "weighted_sum":
-            alpha_ = self.args.alpha
+            alpha_ = self.args.alpha if alpha == -1 else alpha
             merged_ = alpha_ * mapA + (1 - alpha_) * mapB
         elif merge_mode == "matrix_mul":
             merged_ = mapA * mapB
@@ -126,6 +126,58 @@ class SemSal:
             merged_output[pid]["priority"] = priority_arr
 
         return merged_output
+
+    def _collect_query_text_candidate(self, reltr_output, saliency_output):
+        suggest_query_text = {}
+
+        # extract meta info
+        attn_size = reltr_output["attn_size"]
+        query_ids = reltr_output["queries"]
+        num_persons = len(saliency_output)
+
+        for pid in range(num_persons):
+            # rescale saliency attention map
+            sal_attn = saliency_output[pid]["attn"]
+            sal_attn = resize(sal_attn, attn_size)
+            sal_attn = sal_attn / sal_attn.max()
+
+            priority_arr = np.array([])
+            # merge json info
+            for qid in query_ids:
+                qid = qid.item()
+                item = reltr_output[qid]
+
+                # obtain attention map from reltr
+                reltr_attn_sub = np.array(item["attn_weights_sub"])
+                reltr_attn_obj = np.array(item["attn_weights_obj"])
+                reltr_attn_sub = reltr_attn_sub / reltr_attn_sub.max()
+                reltr_attn_obj = reltr_attn_obj / reltr_attn_obj.max()
+
+                # merge attention map of reltr and saliency model
+                merged_attn_sub = self._merge_function(reltr_attn_sub, sal_attn, alpha=0)
+                merged_attn_obj = self._merge_function(reltr_attn_obj, sal_attn, alpha=0)
+
+                # crop attention area according to bboxes
+                [[xmin, ymin], [xmax, ymax]] = item["attn_bbox_sub"]
+                cropped_attn_sub = merged_attn_sub[ymin:ymax + 1, xmin:xmax + 1]
+                [[xmin, ymin], [xmax, ymax]] = item["attn_bbox_obj"]
+                cropped_attn_obj = merged_attn_obj[ymin:ymax + 1, xmin:xmax + 1]
+
+                # calculate maximum attention weight
+                max_attn_sub = cropped_attn_sub.max()
+                max_attn_obj = cropped_attn_obj.max()
+                rel_confidence = item["rel_confidence"]
+                # priority = max_attn_sub * max_attn_obj * rel_confidence
+                priority = max_attn_sub * max_attn_obj
+
+                priority_arr = np.append(priority_arr, priority)
+
+            # normalize priority
+            priority_arr = priority_arr / priority_arr.sum()
+            preferred_query_id = query_ids[np.argmax(priority_arr)]
+            suggest_query_text[pid] = reltr_output[preferred_query_id.item()]["semantic"]
+
+        return suggest_query_text
 
     def visualize(self, output):
         for pid in range(output["num_persons"]):
@@ -210,8 +262,9 @@ class SemSal:
 
     def _run_semsal(self, reltr_output, saliency_output, visualize=False):
         merged_output = self._merge_outputs(reltr_output, saliency_output)
+        query_text = self._collect_query_text_candidate(reltr_output, saliency_output)
         if visualize: self.visualize(merged_output)
-        return merged_output
+        return merged_output, query_text
 
     def _save_to_text(self, output):
         img_name = os.path.basename(output["reltr_output"]["img_path"]).split(".")[0]
@@ -240,10 +293,13 @@ class SemSal:
     def fit(self, resume_pkl=False, save_pkl=False, save_txt=False, visualize=False):
         input_dir = self.args.input_dir
         output = {}
+        suggest_query_text = {}
+        for pid in range(self.num_persons):
+            suggest_query_text[pid] = []
 
         imgs_to_process = [self.args.img_name] if self.args.img_name else os.listdir(input_dir)
         for img_name in imgs_to_process:
-            print(f"Processing image: {img_name}")
+            print(f">> Processing image: {img_name}")
 
             img_path = os.path.join(input_dir, img_name)
             img_idx = img_name.split('.')[0]
@@ -266,9 +322,14 @@ class SemSal:
                         [reltr_name, saliency_name],
                         self.args.output_dir)
 
-            merged_output = self._run_semsal(reltr_output, saliency_output, visualize=visualize)
+            merged_output, query_text = self._run_semsal(
+                reltr_output, saliency_output, visualize=visualize)
 
             output[img_name] = merged_output
             if save_txt: self._save_to_text(merged_output)
 
-        return output
+            for pid in range(self.num_persons):
+                if query_text[pid] not in suggest_query_text[pid]:
+                    suggest_query_text[pid].append(query_text[pid])
+
+        return output, suggest_query_text

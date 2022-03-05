@@ -17,7 +17,7 @@ class SemComm:
 
     def _drop_packet_with_random_probability(self, query_ids):
         """Random sampling, no sorting."""
-        drop_prob = PDPget(8000, np.ones(query_ids.shape))
+        drop_prob = PDPget(self.args.power, np.ones(query_ids.shape))
         select_vars = torch.rand(query_ids.size()) > torch.Tensor(drop_prob)
 
         query_ids_received = query_ids[select_vars]
@@ -27,7 +27,7 @@ class SemComm:
 
     def _drop_packet_with_power_scheduler(self, query_ids, priority):
         """Drop by power scheduler and sort by saliency priority."""
-        drop_prob = PDPget(8000, priority)
+        drop_prob = PDPget(self.args.power, priority)
         select_vars = torch.rand(query_ids.size()) > torch.Tensor(drop_prob)
 
         query_ids_received = query_ids[select_vars]
