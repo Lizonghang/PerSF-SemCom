@@ -20,6 +20,8 @@ def get_args_parser():
                         help='device to use in reltr inference')
     parser.add_argument('--device_saliency', default='cpu',
                         help='device to use in saliency inference')
+    parser.add_argument('--resume_pkl', type=int, default=0,
+                        help='whether to use saved pickle files, to save execution time')
 
     # reltr args
     parser.add_argument('--lr_backbone', default=1e-5, type=float)
@@ -96,10 +98,13 @@ if __name__ == '__main__':
 
     # Merge subject and object saliency
     semsal = SemSal(RelTR, Saliency, args)
-    # first run
-    semsal_output = semsal.fit(resume_pkl=False, save_pkl=True, save_txt=True, visualize=True)
-    # run with saved pickle files
-    # semsal_output = semsal.fit(resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
+
+    if args.resume_pkl:
+        # run with saved pickle files
+        semsal_output = semsal.fit(resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
+    else:
+        # first run
+        semsal_output = semsal.fit(resume_pkl=False, save_pkl=True, save_txt=True, visualize=True)
 
     sem_comm = SemComm(args)
     text_matcher = TextMatcher(semsal_output, args)

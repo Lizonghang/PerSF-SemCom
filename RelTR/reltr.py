@@ -175,7 +175,8 @@ class RelTR:
                 results[idx.item()]["rel_confidence"] = rel_confidence_
                 results[idx.item()]["semantic"] = semantic_
 
-        return self._remove_duplicates(results)
+        return results
+        # return self._remove_duplicates(results)
 
     def visualize(self, output_json):
         queries = output_json["queries"]
