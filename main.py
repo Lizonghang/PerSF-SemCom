@@ -112,4 +112,5 @@ if __name__ == '__main__':
         text_matcher.eval(match_scores)
 
     result = text_matcher.output
-    print([result[pid]["mean_max_scores"] for pid in result.keys()])
+    print([result[pid]["mean_max_scores"]
+           for pid in result.keys()])

@@ -1,4 +1,4 @@
-FROM lizonghango00o1/matlab-python:ubuntu-desktop-cuda10.0
+FROM lizonghango00o1/semsal:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0
 
 # ==================================================================
 # apt tools
@@ -32,18 +32,18 @@ RUN APT_INSTALL="apt install -y --no-install-recommends" && \
 # ==================================================================
 # install conda (NOTE: Already installed in the base image, python 3.6.8)
 # ------------------------------------------------------------------
-#RUN curl -o /root/anaconda.sh https://mirrors.bfsu.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
-#    chmod +x /root/anaconda.sh && \
-#    /root/anaconda.sh -bu -p /opt/conda && \
-#    rm /root/anaconda.sh
-#
-#ENV PATH /opt/conda/bin:$PATH
+RUN curl -o /root/anaconda.sh https://mirrors.bfsu.edu.cn/anaconda/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    chmod +x /root/anaconda.sh && \
+    /root/anaconda.sh -bu -p /opt/conda && \
+    rm /root/anaconda.sh
+
+ENV PATH /opt/conda/bin:$PATH
 
 # ==================================================================
 # install python
 # ------------------------------------------------------------------
-#RUN conda install -y python=3.7 && \
-#    conda update --all
+RUN conda install -y python=3.7 && \
+    conda update --all
 
 # ==================================================================
 # install tensorflow, pytorch and utils
