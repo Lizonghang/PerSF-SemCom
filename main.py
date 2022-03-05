@@ -1,4 +1,3 @@
-import random
 import argparse
 from RelTR import RelTR
 from Saliency import Saliency
@@ -115,8 +114,6 @@ if __name__ == '__main__':
     text_matcher = TextMatcher(semsal_output, suggest_query_text, args)
 
     for exp_iter in range(args.repeat_exp):
-        random.seed(exp_iter)
-
         # Send packets through loseless semantic comm network
         sent = sem_comm.send(semsal_output)
 

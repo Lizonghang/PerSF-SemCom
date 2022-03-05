@@ -61,6 +61,8 @@ class TextMatcher:
         output = {}
         for pid in range(self.num_persons):
             personal_preds = self.triplet_dict_per_person[pid]
+
+            random.seed(pid)
             query_text = random.choice(self.query_text[pid])
             output[pid] = {"query_text": query_text}
 
