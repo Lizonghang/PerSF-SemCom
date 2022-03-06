@@ -80,7 +80,7 @@ class SemComm:
                 triplet_dict_per_person[img_name][pid]["triplet_received"] = triplet_received
                 triplet_dict_per_person[img_name][pid]["triplet_dropped"] = triplet_dropped
 
-                if pid == 0 and img_name == semsal_output.keys()[0]:
+                if pid == 0 and img_name == list(semsal_output.keys())[0]:
                     print(f"received: {triplet_received}")
                     print(f"drop: {triplet_dropped}")
 
