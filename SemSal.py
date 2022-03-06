@@ -1,8 +1,10 @@
 import os
+import copy
 import pickle
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import torch
 from skimage.transform import resize
 from PIL import Image
 
@@ -47,7 +49,7 @@ class SemSal:
         for name in names:
             with open(os.path.join(output_dir, name), "rb") as fp:
                 output.append(pickle.load(fp))
-        print(">> Pkl outputs are loaded")
+        # print(">> Pkl outputs are loaded")
         return output
 
     def _merge_function(self, mapA, mapB, alpha=-1):
@@ -70,7 +72,6 @@ class SemSal:
         merged_output = {
             "reltr_output": reltr_output,
             "saliency_output": saliency_output,
-            "queries": query_ids,
             "num_persons": num_persons
         }
 
@@ -102,8 +103,10 @@ class SemSal:
 
                 # crop attention area according to bboxes
                 [[xmin, ymin], [xmax, ymax]] = item["attn_bbox_sub"]
+                xmin, ymin = max(xmin, 0), max(ymin, 0)
                 cropped_attn_sub = merged_attn_sub[ymin:ymax+1, xmin:xmax+1]
                 [[xmin, ymin], [xmax, ymax]] = item["attn_bbox_obj"]
+                xmin, ymin = max(xmin, 0), max(ymin, 0)
                 cropped_attn_obj = merged_attn_obj[ymin:ymax+1, xmin:xmax+1]
 
                 # calculate maximum attention weight
@@ -127,6 +130,37 @@ class SemSal:
             merged_output[pid]["priority"] = priority_arr
 
         return merged_output
+
+    def _remove_duplicates(self, output):
+        query_ids = output["reltr_output"]["queries"]
+
+        for pid in range(self.num_persons):
+            per_sal = output[pid]
+            priority = per_sal["priority"]
+            check_dict = {}
+
+            for idx, qid in enumerate(query_ids):
+                qid = qid.item()
+                semantic = output["reltr_output"][qid]["semantic"]
+                if semantic not in check_dict \
+                        or priority[idx] > check_dict[semantic]["priority"]:
+                    check_dict[semantic] = {"qid": qid, "priority": priority[idx]}
+
+            new_query_ids = []
+            new_priority = []
+            for semantic, item in check_dict.items():
+                qid, pri = item.values()
+                new_query_ids.append(qid)
+                new_priority.append(pri)
+            per_sal["queries"] = torch.Tensor(new_query_ids).int()
+            per_sal["priority"] = np.array(new_priority)
+            per_sal["priority"] /= per_sal["priority"].sum()
+
+            for qid in query_ids:
+                if qid not in output[pid]["queries"]:
+                    per_sal.pop(qid.item())
+
+        return output
 
     def _collect_query_text_candidate(self, reltr_output, saliency_output):
         suggest_query_text = {}
@@ -160,8 +194,10 @@ class SemSal:
 
                 # crop attention area according to bboxes
                 [[xmin, ymin], [xmax, ymax]] = item["attn_bbox_sub"]
+                xmin, ymin = max(xmin, 0), max(ymin, 0)
                 cropped_attn_sub = merged_attn_sub[ymin:ymax + 1, xmin:xmax + 1]
                 [[xmin, ymin], [xmax, ymax]] = item["attn_bbox_obj"]
+                xmin, ymin = max(xmin, 0), max(ymin, 0)
                 cropped_attn_obj = merged_attn_obj[ymin:ymax + 1, xmin:xmax + 1]
 
                 # calculate maximum attention weight
@@ -180,22 +216,41 @@ class SemSal:
 
         return suggest_query_text
 
+    def _get_query_text(self, query_text_list):
+        counter = {}
+        for pid in range(self.num_persons):
+            counter[pid] = {}
+
+        for query_text in query_text_list:
+            for pid in range(self.num_persons):
+                num_ = counter[pid].get(query_text[pid], 0)
+                counter[pid][query_text[pid]] = num_ + 1
+
+        suggest_query_text = {}
+        for pid in range(self.num_persons):
+            suggest_query_text[pid] = list(counter[pid].keys())[
+                np.argmax(counter[pid].values())]
+
+        return suggest_query_text
+
     def visualize(self, output):
         for pid in range(output["num_persons"]):
             priority = output[pid]["priority"]
             order = np.argsort(np.argsort(-priority))
-            query_ids = output["queries"]
+            query_ids = output[pid]["queries"]
             num_queries = len(query_ids)
 
             fig, axs = plt.subplots(ncols=num_queries, nrows=6, figsize=(3*num_queries, 13))
             axs = axs.T
             for idx in range(num_queries):
+                axs_ = axs[idx] if num_queries > 1 else axs
+
                 query_id = query_ids[idx].item()
                 semantic = output["reltr_output"][query_id]["semantic"]
                 semantic = semantic.replace(" ", "\ ")
 
                 # show reltr attention map (subject)
-                ax = axs[idx][0]
+                ax = axs_[0]
                 ax.imshow(output["reltr_output"][query_id]["attn_weights_sub"])
                 ax.axis("off")
 
@@ -203,7 +258,7 @@ class SemSal:
                 ax.set_title(f"subject confidence: {sub_confidence_}")
 
                 # show reltr attention map (object)
-                ax = axs[idx][1]
+                ax = axs_[1]
                 ax.imshow(output["reltr_output"][query_id]["attn_weights_obj"])
                 ax.axis("off")
 
@@ -211,7 +266,7 @@ class SemSal:
                 ax.set_title(f"object confidence: {obj_confidence_}")
 
                 # show reltr bboxes
-                ax = axs[idx][2]
+                ax = axs_[2]
                 img = Image.open(output["saliency_output"][pid]["img_path"])
                 ax.imshow(img)
                 ((sxmin, symin), (sxmax, symax)) = output["reltr_output"][query_id]["img_bbox_sub"]
@@ -230,20 +285,20 @@ class SemSal:
                              r"semantic: $\bf{" + semantic + "}$")
 
                 # show saliency map
-                ax = axs[idx][3]
+                ax = axs_[3]
                 ax.imshow(output["saliency_output"][pid]["attn"])
                 ax.axis("off")
                 ax.set_title("saliency map")
 
                 # show merged attention map (subject)
                 qid = query_ids[idx].item()
-                ax = axs[idx][4]
+                ax = axs_[4]
                 ax.imshow(output[pid][qid]["merged_attn_sub"])
                 ax.axis("off")
                 ax.set_title(f"subject merged map")
 
                 # show merged attention map (object)
-                ax = axs[idx][5]
+                ax = axs_[5]
                 ax.imshow(output[pid][qid]["merged_attn_obj"])
                 ax.axis("off")
                 ax.set_title(f"object merged map\n"
@@ -263,6 +318,7 @@ class SemSal:
 
     def _run_semsal(self, reltr_output, saliency_output, visualize=False):
         merged_output = self._merge_outputs(reltr_output, saliency_output)
+        merged_output = self._remove_duplicates(merged_output)
         query_text = self._collect_query_text_candidate(reltr_output, saliency_output)
         if visualize: self.visualize(merged_output)
         return merged_output, query_text
@@ -275,8 +331,6 @@ class SemSal:
         os.makedirs(self.args.output_dir, exist_ok=True)
         os.makedirs(output_img_dir, exist_ok=True)
 
-        query_ids = output["reltr_output"]["queries"]
-
         fp = open(output_txt_name, "w")
 
         fp.write(output["reltr_output"]["img_path"])
@@ -284,6 +338,7 @@ class SemSal:
 
         for pid in range(output["num_persons"]):
             fp.write(f"Person {pid}:\n")
+            query_ids = output[pid]["queries"]
             for idx, qid in enumerate(query_ids):
                 qid = qid.item()
                 fp.write(output["reltr_output"][qid]["semantic"]+": ")
@@ -294,11 +349,11 @@ class SemSal:
     def fit(self, resume_pkl=False, save_pkl=False, save_txt=False, visualize=False):
         input_dir = self.args.input_dir
         output = {}
-        suggest_query_text = {}
-        for pid in range(self.num_persons):
-            suggest_query_text[pid] = []
+        query_text_list = []
 
-        imgs_to_process = [self.args.img_name] if self.args.img_name else os.listdir(input_dir)
+        imgs_to_process = [self.args.img_name] if self.args.img_name \
+            else sorted(os.listdir(input_dir))
+
         for img_name in imgs_to_process:
             print(f">> Processing image: {img_name}")
 
@@ -308,12 +363,17 @@ class SemSal:
             saliency_name = f"saliency_output_{img_idx}.pkl"
 
             if resume_pkl:
-                reltr_output, saliency_output = self._load_pkl(
-                    [reltr_name, saliency_name],
-                    self.args.output_dir)
+                try:
+                    reltr_output, saliency_output = self._load_pkl(
+                        [reltr_name, saliency_name],
+                        self.args.output_dir)
+                except Exception:
+                    print(f">> Image {img_name} not loaded")
+                    continue
             else:
                 # RelTR inference
                 reltr_output = self._run_reltr(img_path)
+                if not reltr_output: continue
                 # Saliency inference (7 persons)
                 saliency_output = self._run_multi_saliency(img_path)
                 # save outputs
@@ -328,9 +388,6 @@ class SemSal:
 
             output[img_name] = merged_output
             if save_txt: self._save_to_text(merged_output)
+            query_text_list.append(query_text)
 
-            for pid in range(self.num_persons):
-                if query_text[pid] not in suggest_query_text[pid]:
-                    suggest_query_text[pid].append(query_text[pid])
-
-        return output, suggest_query_text
+        return output, self._get_query_text(query_text_list)

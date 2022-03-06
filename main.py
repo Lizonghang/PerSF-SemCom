@@ -1,4 +1,5 @@
 import argparse
+
 from RelTR import RelTR
 from Saliency import Saliency
 from SemSal import SemSal
@@ -16,7 +17,7 @@ def get_args_parser():
                         help='only the specified image file will be processed')
     parser.add_argument('--output_dir', type=str, default='output/',
                         help="directory of output files (e.g., images, logs)")
-    parser.add_argument('--device_reltr', default='cuda:0',
+    parser.add_argument('--device_reltr', type=str, default='cuda:0',
                         help='device to use in reltr inference')
     parser.add_argument('--device_saliency', default='cpu',
                         help='device to use in saliency inference')
@@ -74,7 +75,7 @@ def get_args_parser():
     # for semsal merge
     parser.add_argument('--merge_mode', choices=['weighted_sum', 'matrix_mul'], default='weighted_sum',
                         help='function to merge two attention maps, default to be simply sum')
-    parser.add_argument('--alpha', default=0.5, type=float,
+    parser.add_argument('--alpha', default=0., type=float,
                         help='weight to merge RelTR and saliency map')
     parser.add_argument('--num_persons', type=int, default=7,
                         help='number of persons to simulate, only 7 is supported currently')
@@ -82,7 +83,7 @@ def get_args_parser():
     # for semantic communication
     parser.add_argument('--drop_mode', choices=['no_drop', 'random_drop', 'schedule'],
                         default='schedule', help='whether and how to drop packets')
-    parser.add_argument('--power', type=int, default=8000,
+    parser.add_argument('--power', type=int, default=4000,
                         help='transfer power of sender')
 
     # for text matcher
@@ -112,10 +113,13 @@ if __name__ == '__main__':
 
     sem_comm = SemComm(args)
     text_matcher = TextMatcher(semsal_output, suggest_query_text, args)
+    print("Personalized query text:", suggest_query_text)
 
     for exp_iter in range(args.repeat_exp):
+        print(f">> Repeat {exp_iter} times ...")
+
         # Send packets through loseless semantic comm network
-        sent = sem_comm.send(semsal_output)
+        sent = sem_comm.send(semsal_output, exp_iter)
 
         # Evaluate match score on the user side
         text_matcher.receive(sent)

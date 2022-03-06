@@ -97,6 +97,11 @@ class RelTR:
 
         # sort queries by their overall confidence
         keep_queries = torch.nonzero(keep, as_tuple=True)[0]
+
+        # no predictions satisfy
+        if len(keep_queries) == 0:
+            return None
+
         confidence_ = -probas[keep_queries].max(-1)[0] \
                       * probas_sub[keep_queries].max(-1)[0] \
                       * probas_obj[keep_queries].max(-1)[0]
