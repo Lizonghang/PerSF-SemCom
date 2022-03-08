@@ -1,4 +1,5 @@
 import os
+import math
 import pickle
 import numpy as np
 import tensorflow as tf
@@ -93,8 +94,9 @@ class SemSal:
                 # obtain attention map from reltr
                 reltr_attn_sub = np.array(item["attn_weights_sub"])
                 reltr_attn_obj = np.array(item["attn_weights_obj"])
-                reltr_attn_sub = reltr_attn_sub / reltr_attn_sub.max()
-                reltr_attn_obj = reltr_attn_obj / reltr_attn_obj.max()
+                scale_ = max(reltr_attn_sub.max(), reltr_attn_obj.max())
+                reltr_attn_sub = reltr_attn_sub / scale_
+                reltr_attn_obj = reltr_attn_obj / scale_
 
                 # merge attention map of reltr and saliency model
                 merged_attn_sub = self._merge_function(reltr_attn_sub, sal_attn)
@@ -162,7 +164,7 @@ class SemSal:
         return output
 
     def _collect_query_text_candidate(self, reltr_output, saliency_output):
-        suggest_query_text = {}
+        triplet_priorities = {}
 
         # extract meta info
         attn_size = reltr_output["attn_size"]
@@ -170,12 +172,13 @@ class SemSal:
         num_persons = len(saliency_output)
 
         for pid in range(num_persons):
+            triplet_priorities[pid] = {}
+
             # rescale saliency attention map
             sal_attn = saliency_output[pid]["attn"]
             sal_attn = resize(sal_attn, attn_size)
             sal_attn = sal_attn / sal_attn.max()
 
-            priority_arr = np.array([])
             # merge json info
             for qid in query_ids:
                 qid = qid.item()
@@ -184,8 +187,9 @@ class SemSal:
                 # obtain attention map from reltr
                 reltr_attn_sub = np.array(item["attn_weights_sub"])
                 reltr_attn_obj = np.array(item["attn_weights_obj"])
-                reltr_attn_sub = reltr_attn_sub / reltr_attn_sub.max()
-                reltr_attn_obj = reltr_attn_obj / reltr_attn_obj.max()
+                scale_ = max(reltr_attn_sub.max(), reltr_attn_obj.max())
+                reltr_attn_sub = reltr_attn_sub / scale_
+                reltr_attn_obj = reltr_attn_obj / scale_
 
                 # merge attention map of reltr and saliency model
                 merged_attn_sub = self._merge_function(reltr_attn_sub, sal_attn, alpha=0)
@@ -206,29 +210,40 @@ class SemSal:
                 # priority = max_attn_sub * max_attn_obj * rel_confidence
                 priority = max_attn_sub * max_attn_obj
 
-                priority_arr = np.append(priority_arr, priority)
+                semantic = reltr_output[qid]["semantic"]
+                triplet_priorities[pid][semantic] = priority
 
-            # normalize priority
-            priority_arr = priority_arr / priority_arr.sum()
-            preferred_query_id = query_ids[np.argmax(priority_arr)]
-            suggest_query_text[pid] = reltr_output[preferred_query_id.item()]["semantic"]
+        return triplet_priorities
 
-        return suggest_query_text
-
-    def _get_query_text(self, query_text_list):
+    def _get_query_text(self, priorities_list):
         counter = {}
+        priority_sum = {}
         for pid in range(self.num_persons):
             counter[pid] = {}
+            priority_sum[pid] = {}
 
-        for query_text in query_text_list:
+        # number of semantics occurs
+        for item_per_image in priorities_list:
             for pid in range(self.num_persons):
-                num_ = counter[pid].get(query_text[pid], 0)
-                counter[pid][query_text[pid]] = num_ + 1
+                for triplet, priority in item_per_image[pid].items():
+                    curr_num_ = counter[pid].get(triplet, 0)
+                    counter[pid][triplet] = curr_num_ + 1
+                    curr_pri_ = priority_sum[pid].get(triplet, 0)
+                    priority_sum[pid][triplet] = curr_pri_ + priority
 
+        # calculate average priorities for each triplet
+        num_images = len(priorities_list)
+        for pid in range(self.num_persons):
+            for triplet in priority_sum[pid].keys():
+                num_ = counter[pid][triplet]
+                priority_sum[pid][triplet] /= num_
+                priority_sum[pid][triplet] *= math.log(num_, num_images)
+
+        # use the triplet with maximum priority as the query text
         suggest_query_text = {}
         for pid in range(self.num_persons):
-            suggest_query_text[pid] = list(counter[pid].keys())[
-                np.argmax(list(counter[pid].values()))]
+            suggest_query_text[pid] = list(priority_sum[pid].keys())[
+                np.argmax(list(priority_sum[pid].values()))]
 
         return suggest_query_text
 
@@ -318,9 +333,9 @@ class SemSal:
     def _run_semsal(self, reltr_output, saliency_output, visualize=False):
         merged_output = self._merge_outputs(reltr_output, saliency_output)
         merged_output = self._remove_duplicates(merged_output)
-        query_text = self._collect_query_text_candidate(reltr_output, saliency_output)
+        priorities = self._collect_query_text_candidate(reltr_output, saliency_output)
         if visualize: self.visualize(merged_output)
-        return merged_output, query_text
+        return merged_output, priorities
 
     def _save_to_text(self, output):
         img_name = os.path.basename(output["reltr_output"]["img_path"]).split(".")[0]
@@ -348,7 +363,7 @@ class SemSal:
     def fit(self, resume_pkl=False, save_pkl=False, save_txt=False, visualize=False):
         input_dir = self.args.input_dir
         output = {}
-        query_text_list = []
+        priority_list = []
 
         imgs_to_process = [self.args.img_name] if self.args.img_name \
             else sorted(os.listdir(input_dir))
@@ -382,11 +397,11 @@ class SemSal:
                         [reltr_name, saliency_name],
                         self.args.output_dir)
 
-            merged_output, query_text = self._run_semsal(
+            merged_output, priorities = self._run_semsal(
                 reltr_output, saliency_output, visualize=visualize)
 
             output[img_name] = merged_output
             if save_txt: self._save_to_text(merged_output)
-            query_text_list.append(query_text)
+            priority_list.append(priorities)
 
-        return output, self._get_query_text(query_text_list)
+        return output, self._get_query_text(priority_list)
