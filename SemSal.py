@@ -1,5 +1,4 @@
 import os
-import copy
 import pickle
 import numpy as np
 import tensorflow as tf
@@ -229,7 +228,7 @@ class SemSal:
         suggest_query_text = {}
         for pid in range(self.num_persons):
             suggest_query_text[pid] = list(counter[pid].keys())[
-                np.argmax(counter[pid].values())]
+                np.argmax(list(counter[pid].values()))]
 
         return suggest_query_text
 
@@ -355,7 +354,7 @@ class SemSal:
             else sorted(os.listdir(input_dir))
 
         for img_name in imgs_to_process:
-            print(f">> Processing image: {img_name}")
+            # print(f">> Processing image: {img_name}")
 
             img_path = os.path.join(input_dir, img_name)
             img_idx = img_name.split('.')[0]

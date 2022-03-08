@@ -15,14 +15,14 @@ class SemComm:
     def _no_packet_drop(self, query_ids):
         return query_ids, torch.Tensor([])
 
-    def _drop_packet_with_random_probability(self, query_ids, exp_iter):
+    def _drop_packet_with_random_probability(self, query_ids, seed):
         """Random sampling, no sorting."""
         if len(query_ids) == 1:
             return query_ids, torch.Tensor([])
 
         drop_prob = PDPget(self.args.power, np.ones(query_ids.shape))
 
-        torch.manual_seed(exp_iter)
+        torch.manual_seed(seed)
         select_vars = torch.rand(query_ids.size()) > torch.Tensor(drop_prob)
 
         query_ids_received = query_ids[select_vars]
@@ -30,14 +30,14 @@ class SemComm:
 
         return query_ids_received, query_ids_dropped
 
-    def _drop_packet_with_power_scheduler(self, query_ids, priority, exp_iter):
+    def _drop_packet_with_power_scheduler(self, query_ids, priority, seed):
         """Drop by power scheduler and sort by saliency priority."""
         if len(query_ids) == 1:
             return query_ids, torch.Tensor([])
 
         drop_prob = PDPget(self.args.power, priority)
 
-        torch.manual_seed(exp_iter)
+        torch.manual_seed(seed)
         select_vars = torch.rand(query_ids.size()) > torch.Tensor(drop_prob)
 
         query_ids_received = query_ids[select_vars]
@@ -61,12 +61,12 @@ class SemComm:
                 if self.drop_mode == "random_drop":
                     # Drop packets with random probability
                     query_ids_received, query_ids_dropped = self._drop_packet_with_random_probability(
-                        query_ids, exp_iter)
+                        query_ids, exp_iter+pid)
                 elif self.drop_mode == "schedule":
                     # Drop packets by power scheduler, according to saliency priority
                     priority = np.array(merged_output_[pid]["priority"])
                     query_ids_received, query_ids_dropped = self._drop_packet_with_power_scheduler(
-                        query_ids, priority, exp_iter)
+                        query_ids, priority, exp_iter+pid)
                 else:
                     # Drop packets randomly, without considering saliency
                     query_ids_received, query_ids_dropped = self._no_packet_drop(query_ids)
@@ -79,9 +79,5 @@ class SemComm:
                 triplet_dict_per_person[img_name][pid] = {}
                 triplet_dict_per_person[img_name][pid]["triplet_received"] = triplet_received
                 triplet_dict_per_person[img_name][pid]["triplet_dropped"] = triplet_dropped
-
-                if pid == 0 and img_name == list(semsal_output.keys())[0]:
-                    print(f"received: {triplet_received}")
-                    print(f"drop: {triplet_dropped}")
 
         return triplet_dict_per_person

@@ -53,6 +53,14 @@ class TextMatcher:
 
         return triplet_dict_per_person
 
+    def _score_func(self, scores, accurate_match=True):
+        ret_score = np.max(scores)
+
+        if accurate_match:
+            ret_score = 1 if ret_score > 0.99 else 0
+
+        return ret_score
+
     def receive(self, received_output):
         self.triplet_dict_per_person = self._reformat_received_output(received_output)
 
@@ -61,6 +69,7 @@ class TextMatcher:
 
         output = {}
         for pid in range(self.num_persons):
+
             personal_preds = self.triplet_dict_per_person[pid]
 
             query_text = self.query_text[pid]
@@ -85,7 +94,7 @@ class TextMatcher:
 
         return output
 
-    def eval(self, match_scores, score_func=np.max):
+    def eval(self, match_scores):
         for pid in range(self.num_persons):
             personal_scores = match_scores[pid]
             img_names = []
@@ -105,7 +114,7 @@ class TextMatcher:
 
                 self.output[pid][img_name]["max_score"] = round(
                     (self.output[pid][img_name].get("max_score", 0.)
-                     * self.repeat_counter + score_func(scores)) \
+                     * self.repeat_counter + self._score_func(scores)) \
                     / (self.repeat_counter + 1), 5)
 
             self.output[pid]["mean_max_scores"] = np.round(np.mean(
