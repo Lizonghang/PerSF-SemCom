@@ -53,12 +53,11 @@ class TextMatcher:
 
         return triplet_dict_per_person
 
-    def _score_func(self, scores, accurate_match=True):
-        ret_score = np.max(scores)
-
+    def _score_func(self, scores, accurate_match=False):
         if accurate_match:
-            ret_score = 1 if ret_score > 0.99 else 0
-
+            ret_score = 1 if np.max(scores) > 0.99 else 0
+        else:
+            ret_score = sum([s if s > 0.6 else 0 for s in scores])
         return ret_score
 
     def receive(self, received_output):

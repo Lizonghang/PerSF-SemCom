@@ -83,11 +83,11 @@ def get_args_parser():
     # for semantic communication
     parser.add_argument('--drop_mode', choices=['no_drop', 'random_drop', 'schedule'],
                         default='schedule', help='whether and how to drop packets')
-    parser.add_argument('--power', type=int, default=4000,
+    parser.add_argument('--power', type=int, default=6000,
                         help='transfer power of sender')
 
     # for text matcher
-    parser.add_argument('--repeat_exp', default=10, type=int,
+    parser.add_argument('--repeat_exp', default=50, type=int,
                         help='number of repeat experiments to evaluate match score')
     return parser
 
