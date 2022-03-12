@@ -53,7 +53,7 @@ class TextMatcher:
 
         return triplet_dict_per_person
 
-    def _score_func(self, scores, accurate_match=False):
+    def _score_func(self, scores, accurate_match=True):
         if accurate_match:
             ret_score = 1 if np.max(scores) > 0.99 else 0
         else:

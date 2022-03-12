@@ -63,9 +63,44 @@ class SemSal:
             merged_ = mapA + mapB
         return merged_
 
+    def _normalize_attention_heatmap(self, reltr_output):
+        max_scale_ = 0.
+        query_ids = reltr_output["queries"]
+
+        # obtain max_scale_ across all attention heatmaps
+        for qid in query_ids:
+            item = reltr_output[qid.item()]
+            attn_sub_max_ = item["attn_weights_sub"].max()
+            attn_obj_max_ = item["attn_weights_obj"].max()
+            scale_ = max(attn_sub_max_, attn_obj_max_)
+            max_scale_ = max(max_scale_, scale_)
+
+        # normalize attention heatmap using max_scale_
+        for qid in query_ids:
+            item = reltr_output[qid.item()]
+            item["attn_weights_sub"] /= max_scale_
+            item["attn_weights_obj"] /= max_scale_
+
+    def _normalize_saliency_heatmap(self, saliency_output, attn_size):
+        max_scale_ = 0.
+        num_persons = len(saliency_output)
+
+        # obtain max_scale_ across all personal saliency heatmaps
+        for pid in range(num_persons):
+            sal_attn = saliency_output[pid]["attn"]
+            # resize saliency heatmaps
+            sal_attn = resize(sal_attn, attn_size)
+            saliency_output[pid]["attn"] = sal_attn
+            # count maximum scale factor
+            scale_ = sal_attn.max()
+            max_scale_ = max(max_scale_, scale_)
+
+        # normalize saliency heatmap using max_scale_
+        for pid in range(num_persons):
+            sal_attn = saliency_output[pid]["attn"]
+            sal_attn /= max_scale_
+
     def _merge_outputs(self, reltr_output, saliency_output):
-        # extract meta info
-        attn_size = reltr_output["attn_size"]
         query_ids = reltr_output["queries"]
         num_persons = len(saliency_output)
 
@@ -80,8 +115,6 @@ class SemSal:
 
             # rescale saliency attention map
             sal_attn = saliency_output[pid]["attn"]
-            sal_attn = resize(sal_attn, attn_size)
-            sal_attn = sal_attn / sal_attn.max()
             merged_output[pid]["sal_attn"] = sal_attn
 
             priority_arr = np.array([])
@@ -90,13 +123,8 @@ class SemSal:
                 qid = qid.item()
                 merged_output[pid][qid] = {}
                 item = reltr_output[qid]
-
-                # obtain attention map from reltr
-                reltr_attn_sub = np.array(item["attn_weights_sub"])
-                reltr_attn_obj = np.array(item["attn_weights_obj"])
-                scale_ = max(reltr_attn_sub.max(), reltr_attn_obj.max())
-                reltr_attn_sub = reltr_attn_sub / scale_
-                reltr_attn_obj = reltr_attn_obj / scale_
+                reltr_attn_sub = item["attn_weights_sub"]
+                reltr_attn_obj = item["attn_weights_obj"]
 
                 # merge attention map of reltr and saliency model
                 merged_attn_sub = self._merge_function(reltr_attn_sub, sal_attn)
@@ -165,9 +193,6 @@ class SemSal:
 
     def _collect_query_text_candidate(self, reltr_output, saliency_output):
         triplet_priorities = {}
-
-        # extract meta info
-        attn_size = reltr_output["attn_size"]
         query_ids = reltr_output["queries"]
         num_persons = len(saliency_output)
 
@@ -176,20 +201,13 @@ class SemSal:
 
             # rescale saliency attention map
             sal_attn = saliency_output[pid]["attn"]
-            sal_attn = resize(sal_attn, attn_size)
-            sal_attn = sal_attn / sal_attn.max()
 
             # merge json info
             for qid in query_ids:
                 qid = qid.item()
                 item = reltr_output[qid]
-
-                # obtain attention map from reltr
-                reltr_attn_sub = np.array(item["attn_weights_sub"])
-                reltr_attn_obj = np.array(item["attn_weights_obj"])
-                scale_ = max(reltr_attn_sub.max(), reltr_attn_obj.max())
-                reltr_attn_sub = reltr_attn_sub / scale_
-                reltr_attn_obj = reltr_attn_obj / scale_
+                reltr_attn_sub = item["attn_weights_sub"]
+                reltr_attn_obj = item["attn_weights_obj"]
 
                 # merge attention map of reltr and saliency model
                 merged_attn_sub = self._merge_function(reltr_attn_sub, sal_attn, alpha=0)
@@ -331,6 +349,13 @@ class SemSal:
             plt.savefig(output_img_name)
 
     def _run_semsal(self, reltr_output, saliency_output, visualize=False):
+        # normalize attention heatmaps globally
+        self._normalize_attention_heatmap(reltr_output)
+        # normalize saliency heatmaps globally
+        attn_size = reltr_output["attn_size"]
+        self._normalize_saliency_heatmap(saliency_output, attn_size)
+
+        # merge heatmaps
         merged_output = self._merge_outputs(reltr_output, saliency_output)
         merged_output = self._remove_duplicates(merged_output)
         priorities = self._collect_query_text_candidate(reltr_output, saliency_output)
