@@ -15,12 +15,12 @@ class SemComm:
     def _no_packet_drop(self, query_ids):
         return query_ids, torch.Tensor([])
 
-    def _drop_packet_with_random_probability(self, query_ids, seed):
+    def _drop_packet_with_random_probability(self, user_channel, power, query_ids, seed):
         """Random sampling, no sorting."""
         if len(query_ids) == 1:
             return query_ids, torch.Tensor([])
 
-        drop_prob = PDPget(self.args.power, np.ones(query_ids.shape))
+        drop_prob = user_channel.get_packet_drop_prob(power, np.ones(query_ids.shape))
 
         torch.manual_seed(seed)
         select_vars = torch.rand(query_ids.size()) > torch.Tensor(drop_prob)
@@ -30,12 +30,12 @@ class SemComm:
 
         return query_ids_received, query_ids_dropped
 
-    def _drop_packet_with_power_scheduler(self, query_ids, priority, seed):
+    def _drop_packet_with_power_scheduler(self, user_channel, power, query_ids, priority, seed):
         """Drop by power scheduler and sort by saliency priority."""
         if len(query_ids) == 1:
             return query_ids, torch.Tensor([])
 
-        drop_prob = PDPget(self.args.power, priority)
+        drop_prob = user_channel.get_packet_drop_prob(power, priority)
 
         torch.manual_seed(seed)
         select_vars = torch.rand(query_ids.size()) > torch.Tensor(drop_prob)
@@ -48,7 +48,7 @@ class SemComm:
 
         return query_ids_sorted, query_ids_dropped
 
-    def send(self, semsal_output, exp_iter):
+    def send(self, semsal_output, power_probs, fading_channel, exp_iter):
         triplet_dict_per_person = {}
 
         for img_name in semsal_output.keys():
@@ -57,16 +57,18 @@ class SemComm:
 
             for pid in range(self.num_persons):
                 query_ids = merged_output_[pid]["queries"]
+                p_power = power_probs[pid] * self.args.power
+                user_channel = fading_channel.get_user_channel(pid)
 
                 if self.drop_mode == "random_drop":
                     # Drop packets with random probability
                     query_ids_received, query_ids_dropped = self._drop_packet_with_random_probability(
-                        query_ids, exp_iter+pid)
+                        user_channel, p_power, query_ids, exp_iter+pid)
                 elif self.drop_mode == "schedule":
                     # Drop packets by power scheduler, according to saliency priority
                     priority = np.array(merged_output_[pid]["priority"])
                     query_ids_received, query_ids_dropped = self._drop_packet_with_power_scheduler(
-                        query_ids, priority, exp_iter+pid)
+                        user_channel, p_power, query_ids, priority, exp_iter+pid)
                 else:
                     # Drop packets randomly, without considering saliency
                     query_ids_received, query_ids_dropped = self._no_packet_drop(query_ids)

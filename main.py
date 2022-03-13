@@ -1,10 +1,13 @@
 import argparse
+import numpy as np
 
 from RelTR import RelTR
 from Saliency import Saliency
 from SemSal import SemSal
 from TextMatch import TextMatcher
 from SemComm import SemComm
+from FadingChannel import FadingChannel
+from sko.GA import GA
 
 
 def get_args_parser():
@@ -87,7 +90,7 @@ def get_args_parser():
                         help='transfer power of sender')
 
     # for text matcher
-    parser.add_argument('--repeat_exp', default=50, type=int,
+    parser.add_argument('--repeat_exp', default=1, type=int,
                         help='number of repeat experiments to evaluate match score')
     return parser
 
@@ -113,19 +116,37 @@ if __name__ == '__main__':
 
     sem_comm = SemComm(args)
     text_matcher = TextMatcher(semsal_output, suggest_query_text, args)
+    fading_channel = FadingChannel(args.num_persons)
     print("Personalized query text:", suggest_query_text)
 
-    for exp_iter in range(args.repeat_exp):
-        print(f">> Repeat {exp_iter} times ...")
+    def _genetic_blackbox_func(power_ratios):
+        power_allocate_prob = power_ratios / power_ratios.sum()
 
-        # Send packets through loseless semantic comm network
-        sent = sem_comm.send(semsal_output, exp_iter)
+        for exp_iter in range(args.repeat_exp):
+            # Send packets through loseless semantic comm network
+            sent = sem_comm.send(
+                semsal_output, power_allocate_prob, fading_channel, exp_iter)
 
-        # Evaluate match score on the user side
-        text_matcher.receive(sent)
-        match_scores = text_matcher.fit()
-        text_matcher.eval(match_scores)
+            # Evaluate match score on the user side
+            text_matcher.receive(sent)
+            match_scores = text_matcher.fit()
+            text_matcher.eval(match_scores)
 
-    result = text_matcher.output
-    print([result[pid]["mean_max_scores"]
-           for pid in result.keys()])
+        output = text_matcher.output
+        scores = [output[pid]["mean_max_scores"] for pid in output.keys()]
+        return -np.prod(scores)
+
+    # use genetic algorithm to search for best power allocation among users
+    ga = GA(func=_genetic_blackbox_func,
+            n_dim=args.num_persons,
+            size_pop=100,
+            max_iter=1,
+            prob_mut=0.001,
+            lb=[0] * args.num_persons,
+            ub=[1] * args.num_persons,
+            precision=1e-5)
+
+    best_power_ratios, best_score = ga.run()
+    best_power_ratios /= best_power_ratios.sum()
+    print("best power allocation (ratio):", best_power_ratios)
+    print("best score:", -best_score)
