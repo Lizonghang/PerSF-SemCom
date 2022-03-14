@@ -78,6 +78,10 @@ class TextMatcher:
                 triplet_received = item["triplet_received"]
                 triplet_dropped = item["triplet_dropped"]
 
+                # if pid == 0 and img_name == list(personal_preds.items())[0][0]:
+                #     print(f"[pid: {pid}, img: {img_name}] received:", triplet_received)
+                #     print(f"[pid: {pid}, img: {img_name}] dropped:", triplet_dropped)
+
                 triplet_scores = []
                 scores = self.mf.predict(query_text)
                 for triplet, score in zip(self.triplet_dict.values(), scores):

@@ -10,6 +10,8 @@ from ..model_base.model_base import ModelBase
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 
+jieba.setLogLevel(jieba.logging.INFO)
+
 
 class NgramTfIdf(ModelBase):
     def __init__(self,
@@ -40,11 +42,11 @@ class NgramTfIdf(ModelBase):
                 self.transformer = pickle.load(f)
         else:
             try:
-                print('[NgramTfIdf] start build ngram_tfidf model.')
-                if words_list == None:
-                    print('[NgramTfIdf] words_list is None')
+                # print('[NgramTfIdf] start build ngram_tfidf model.')
+                # if words_list == None:
+                #     print('[NgramTfIdf] words_list is None')
                 self._gen_model(word_list)
-                print('[NgramTfIdf] build ngram_tfidf model success.')
+                # print('[NgramTfIdf] build ngram_tfidf model success.')
             except Exception as e:
                 print('[NgramTfIdf] build ngram_tfidf model error，error info: {} '.format(e))
 

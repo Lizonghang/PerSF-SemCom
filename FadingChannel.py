@@ -35,6 +35,7 @@ class UserChannel:
     def get_packet_drop_prob(self, total_power, priority):
         power_per_packet = [total_power * prio_ / sum(priority)
                             for prio_ in priority]
+
         BEP = []
         for power in power_per_packet:
             z = power * pow(self.d, -self.alpha) * self.F

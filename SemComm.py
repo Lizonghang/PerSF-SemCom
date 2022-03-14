@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-from pkg_drop import PDPget
 from TextMatch.textmatch.config.constant import setup_seed
 
 setup_seed(2)
