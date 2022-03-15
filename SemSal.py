@@ -1,4 +1,5 @@
 import os
+import gc
 import math
 import pickle
 import numpy as np
@@ -428,5 +429,8 @@ class SemSal:
             output[img_name] = merged_output
             if save_txt: self._save_to_text(merged_output)
             priority_list.append(priorities)
+
+            del reltr_output, saliency_output
+            gc.collect()
 
         return output, self._get_query_text(priority_list)

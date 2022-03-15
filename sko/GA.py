@@ -78,7 +78,7 @@ class GeneticAlgorithmBase(SkoBase, metaclass=ABCMeta):
         self.max_iter = max_iter or self.max_iter
         best = []
         for i in range(self.max_iter):
-            print(f"GA Iteration {i}/{self.max_iter}")
+            print(f"GA Iteration {i + 1}/{self.max_iter}")
 
             self.X = self.chrom2x(self.Chrom)
             self.Y = self.x2y()
@@ -105,8 +105,9 @@ class GeneticAlgorithmBase(SkoBase, metaclass=ABCMeta):
 
         global_best_index = np.array(self.generation_best_Y).argmax()
         self.best_x = self.generation_best_X[global_best_index]
+        # Or self.best_y = self.generation_best_Y[global_best_index]
         self.best_y = self.func(np.array([self.best_x]))
-        return self.best_x, self.best_y
+        return self.best_x, -self.best_y
 
     fit = run
 
