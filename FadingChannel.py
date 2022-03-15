@@ -5,7 +5,7 @@ from scipy.special import gammainc
 
 
 class UserChannel:
-    def __init__(self, pid, m, ms, db, d, n, nd, pj, mi, dbi, noise, alpha, a, b, size):
+    def __init__(self, pid, m, ms, db, d, n, nd, pj, dbi, noise, alpha, a, b, size):
         self.pid = pid
         self.m = m  # multipath
         self.ms = ms  # shadowing
@@ -17,7 +17,6 @@ class UserChannel:
         self.n = n  # number of antennas
         self.nd = nd  # paths of interference
         self.pj = pj  # power of interference (in each path)
-        self.mi = mi  # small scale of interference
         self.dbi = dbi  # db of interference
         self.noise = noise  # noise
         self.size = size
@@ -43,16 +42,10 @@ class UserChannel:
 
     def _inter(self):
         sigma = 1.
-        temp = 1
         SNR_mean = pow(10, self.dbi / 10)
-        Yi = np.zeros(self.size)
-        Yi = np.array(Yi)
-        while temp <= self.nd:
-            Xn = nakagami.rvs(self.mi, loc=0, scale=np.sqrt(sigma), size=self.size)
-            R2 = pow(Xn, 2)
-            T = SNR_mean * R2 / np.mean(R2)
-            Yi = [T[i] + Yi[i] for i in range(len(T))]
-            temp += 1
+        Xn = nakagami.rvs(self.nd, loc=0, scale=np.sqrt(sigma), size=self.size)
+        R2 = pow(Xn, 2)
+        Yi = SNR_mean * R2 / np.mean(R2)
         Yi = Yi * self.pj
         return Yi
 
@@ -87,17 +80,16 @@ class UserChannel:
 
 class FadingChannel:
     def __init__(self, num_persons):
-        Ms = [1.5, 1.5, 6, 6, 1.5, 1.5, 6]
-        MSs = [2, 2, 2, 2, 8, 8, 8]
-        DBs = [-10, -15, -10, -10, -10, -15, -10]
-        Ds = [10, 10, 10, 16, 10, 10, 16]
+        Ms = [1.5, 1.5, 5, 5, 1.5, 1.5, 5]
+        MSs = [2, 2, 2, 2, 4, 4, 4]
+        DBs = [-2, -5, -2, -5, -5, -5, -2]
+        Ds = [9, 9, 9, 12, 9, 9, 12]
         Ns = [3, 3, 3, 3, 3, 3, 3]
-        NDs = [3, 3, 3, 3, 3, 3, 5]
-        PIs = [2, 2, 2, 2, 8, 8, 8]
-        MIs = [2, 2, 2, 2, 2, 2, 2]
-        DBIs = [0, 0, 0, 0, 0, 0, 0]
+        NDs = [2, 2, 2, 2, 2, 2, 4]
+        PIs = [2, 2, 2, 2, 4, 4, 4]
+        DBIs = [-2, -2, -2, -2, -2, -2, -2]
         self.user_channels = [UserChannel(pid, Ms[pid], MSs[pid], DBs[pid], Ds[pid],
-                                          Ns[pid], NDs[pid], PIs[pid], MIs[pid], DBIs[pid],
+                                          Ns[pid], NDs[pid], PIs[pid], DBIs[pid],
                                           noise=1, alpha=2, a=1, b=0.5, size=10000)
                               for pid in range(num_persons)]
 
@@ -108,9 +100,8 @@ class FadingChannel:
 if __name__ == "__main__":
     num_persons = 7
     fading_channel = FadingChannel(num_persons)
-
     for pid in range(num_persons):
         user_channel = fading_channel.get_user_channel(pid)
         drop_prob = user_channel.get_packet_drop_prob(
-            8000, [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7])
+            1000, [1, 1, 1, 1, 1])
         print(drop_prob)
