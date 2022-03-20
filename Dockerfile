@@ -68,6 +68,8 @@ RUN pip install tensorflow==1.13.1 \
 # NOTE: NEED TO INSTALL cudnn-10.0-linux-x64-v7.4.2.24.tgz
 #   MANUALLY IF TENSORFLOW-GPU IS REQUIRED.
 
+COPY . /root
+
 USER root
 
 WORKDIR /root
