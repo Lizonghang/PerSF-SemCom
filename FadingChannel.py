@@ -79,14 +79,14 @@ class UserChannel:
 
 
 class FadingChannel:
-    def __init__(self, num_persons):
-        Ms = [2, 2, 5, 5, 2, 2, 5]
-        MSs = [2, 4, 2, 2, 4, 4, 4]
+    def __init__(self, num_persons, Ms=None, MSs=None, Ds=None, PIs=None):
+        Ms = Ms if Ms else [2, 2, 5, 5, 2, 2, 5]
+        MSs = MSs if MSs else [2, 4, 2, 2, 4, 4, 4]
         DBs = [-3, -3, -3, -3, -5, -5, -3]
-        Ds = [10, 10, 10, 12, 10, 10, 12]
+        Ds = Ds if Ds else [10, 10, 10, 12, 10, 10, 12]
         Ns = [3, 3, 3, 3, 3, 4, 3]
         NDs = [2, 2, 2, 2, 2, 2, 4]
-        PIs = [2, 2, 2, 2, 2, 2, 2]
+        PIs = PIs if PIs else [2, 2, 2, 2, 2, 2, 2]
         DBIs = [-3, -3, -3, -3, -3, -3, -3]
         self.user_channels = [UserChannel(pid, Ms[pid], MSs[pid], DBs[pid], Ds[pid],
                                           Ns[pid], NDs[pid], PIs[pid], DBIs[pid],
