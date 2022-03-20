@@ -134,3 +134,6 @@ output/
 
 # PyCharm
 .idea/
+
+# plot file
+plot/
