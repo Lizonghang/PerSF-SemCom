@@ -1,4 +1,4 @@
-FROM lizonghango00o1/semsal:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0
+FROM nvidia/cuda:10.0-devel
 
 # ==================================================================
 # apt tools
