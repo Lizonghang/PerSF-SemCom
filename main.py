@@ -9,7 +9,7 @@ from SemSal import SemSal
 from TextMatch import TextMatcher
 from SemComm import SemComm
 from FadingChannel import FadingChannel
-from sko.GA import GA
+from sko.GA import GA, RCGA
 from sko.tools import set_run_mode
 
 
@@ -27,7 +27,7 @@ def get_args_parser():
                         help='device to use in reltr inference')
     parser.add_argument('--device_saliency', default='cpu',
                         help='device to use in saliency inference')
-    parser.add_argument('--resume_pkl', type=int, default=0,  # NOTE
+    parser.add_argument('--resume_pkl', type=int, default=1,  # NOTE
                         help='whether to use saved pickle files, to save execution time')
 
     # reltr args
@@ -81,19 +81,19 @@ def get_args_parser():
     # for semsal merge
     parser.add_argument('--merge_mode', choices=['weighted_sum', 'matrix_mul'], default='weighted_sum',
                         help='function to merge two attention maps, default to be simply sum')
-    parser.add_argument('--alpha', default=0.5, type=float,  # NOTE
+    parser.add_argument('--alpha', default=0.2, type=float,  # NOTE
                         help='weight to merge RelTR and saliency map')
     parser.add_argument('--num_persons', type=int, default=7,
-                        help='number of persons to simulate, only 7 is supported currently')
+                        help='number of persons to simulate, only <=7 is supported currently')
 
     # for semantic communication
     parser.add_argument('--drop_mode', choices=['no_drop', 'random_drop', 'schedule'],  # NOTE
                         default='schedule', help='whether and how to drop packets')
-    parser.add_argument('--power', type=int, default=42000,  # NOTE
+    parser.add_argument('--power', type=int, default=3000,  # NOTE
                         help='transfer power of sender')
 
     # for text matcher
-    parser.add_argument('--repeat_exp', default=10, type=int,
+    parser.add_argument('--repeat_exp', default=5, type=int,
                         help='number of repeat experiments to evaluate match score')
 
     # for GA optimizer
@@ -112,9 +112,6 @@ def get_args_parser():
 
 
 def main(power_ratios):
-    # normalize power allocation to probability distribution
-    power_ratios_norm = power_ratios / power_ratios.sum()
-
     sem_comm = SemComm(args)
     text_matcher = TextMatcher(semsal_output, suggest_query_text, args)
     fading_channel = FadingChannel(args.num_persons)
@@ -122,7 +119,7 @@ def main(power_ratios):
     for exp_iter in range(args.repeat_exp):
         # Send packets through loseless semantic comm network
         sent = sem_comm.send(
-            semsal_output, power_ratios_norm, fading_channel, exp_iter)
+            semsal_output, power_ratios, fading_channel, exp_iter)
 
         # Evaluate match score on the user side
         text_matcher.receive(sent)
@@ -132,9 +129,7 @@ def main(power_ratios):
     output = text_matcher.output
     scores = [output[pid]["mean_max_scores"] for pid in output.keys()]
 
-    del sem_comm
-    del text_matcher
-    del fading_channel
+    del sem_comm, text_matcher, fading_channel
     gc.collect()
     torch.cuda.empty_cache()
 
@@ -142,13 +137,15 @@ def main(power_ratios):
 
 
 def genetic_blockbox_func(power_ratios):
+    if power_ratios.sum() > 1.: return np.inf
+
     scores = main(power_ratios)
     target = np.prod(scores)
 
-    # print("==========")
-    # print("power probs:", power_ratios, " sum:", sum(power_ratios))
-    # print("scores:", scores)
-    # print("target:", target)
+    print("==========")
+    print("power probs:", power_ratios, " sum:", sum(power_ratios))
+    print("scores:", scores)
+    print("target:", target)
 
     # minimize -target, i.e., maximize target
     return -target
@@ -157,8 +154,8 @@ def genetic_blockbox_func(power_ratios):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[get_args_parser()])
     args = parser.parse_args()
-    assert args.num_persons == 7, \
-        "Only 7 persons are supported in this version"
+    assert args.num_persons <= 7, \
+        "Only <=7 persons are supported in this version"
 
     # Merge subject and object saliency
     semsal = SemSal(RelTR, Saliency, args)
@@ -181,6 +178,7 @@ if __name__ == '__main__':
         # could be multiprocessing, multithreading, common
         set_run_mode(genetic_blockbox_func, args.comp_mode)
 
+        """Basic GA
         ga = GA(func=genetic_blockbox_func,
                 n_dim=args.num_persons,
                 size_pop=args.size_pop,
@@ -188,23 +186,38 @@ if __name__ == '__main__':
                 prob_mut=args.prob_mut,
                 lb=[0] * args.num_persons,
                 ub=[1] * args.num_persons,
-                constraint_ueq=(lambda x: sum(x) - 1.,),
+                # constraint_ueq=(lambda x: sum(x) - 1.,),
                 precision=1e-5)
+        """
+
+        # Real-Coding GA
+        ga = RCGA(func=genetic_blockbox_func,
+                  n_dim=args.num_persons,
+                  size_pop=args.size_pop,
+                  max_iter=args.max_iter,
+                  prob_mut=args.prob_mut,
+                  lb=[0] * args.num_persons,
+                  ub=[1] * args.num_persons)
 
         best_power_ratios, best_target = ga.run()
-        best_power_ratios /= best_power_ratios.sum()
         scores = main(best_power_ratios)
-        assert np.prod(scores) == -best_target.item()
 
-        print(f"[MODE Bargain:{args.drop_mode}] Best power allocation (ratio):", best_power_ratios)
-        print(f"[MODE Bargain:{args.drop_mode}] Best scores:\033[1;35m {scores} \033[0m")
-        print(f"[MODE Bargain:{args.drop_mode}] Best target:\033[1;35m {-best_target.item()} \033[0m")
-        # print(f"[MODE Bargain:{args.drop_mode}] Generation_best_X:", ga.generation_best_X)
-        print(f"[MODE Bargain:{args.drop_mode}] Generation_best_Y:", ga.generation_best_Y)
-        # print(f"[MODE Bargain:{args.drop_mode}] All_history_Y:", ga.all_history_Y)
+        prefix_ = f"[Bargain:{args.drop_mode}+alpha{args.alpha}]" \
+            if args.drop_mode == "schedule" else f"[Bargain:{args.drop_mode}]"
+        print(f"{prefix_} Best power allocation (ratio):", best_power_ratios)
+        print(f"{prefix_} Best scores:\033[1;35m {scores} \033[0m")
+        print(f"{prefix_} Best target:\033[1;35m {best_target.item()} \033[0m")
+        # print(f"{prefix_} Generation_best_X:", ga.generation_best_X)
+        # print(f"{prefix_} Generation_best_Y:", ga.generation_best_Y)
+        # print(f"{prefix_} All_history_Y:", ga.all_history_Y)
+
+        assert np.prod(scores) == best_target.item(), "ERROR: Result mismatch"
     else:
         # uniform power allocation
         power = np.array([1 / args.num_persons] * args.num_persons)
         scores = main(power)
 
-        print(f"[MODE EvenPower:{args.drop_mode}] Score:\033[1;35m {scores} \033[0m")
+        prefix_ = f"[EvenPower:{args.drop_mode}+alpha{args.alpha}]" \
+            if args.drop_mode == "schedule" else f"[EvenPower:{args.drop_mode}]"
+        print(f"{prefix_} Score:\033[1;35m {scores} \033[0m")
+        print(f"{prefix_} Target:\033[1;35m {np.prod(scores)} \033[0m")
