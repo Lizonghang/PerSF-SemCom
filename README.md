@@ -56,8 +56,10 @@ copy all files to the image.
 
 This will load images from ``input_dir`` and save output to ``output_dir``, 
 including the outputs of RelTR and Saliency in pickle format, and the 
-visualization figures of AttnFusion. Set ``--resume_pkl=1`` to reuse 
-preprocessed outputs.
+visualization figures of AttnFusion (An example: the visualization output 
+of user 1 is shown below). Set ``--resume_pkl=1`` to reuse preprocessed outputs.
+
+![](images/person_0.png)
 
 You can also mount the data directory to the container, using the ``-v`` 
 option, for example,
