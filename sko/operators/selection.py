@@ -1,4 +1,6 @@
 import numpy as np
+
+
 def selection_tournament(self, tourn_size=3):
     '''
     Select the best individual among *tournsize* randomly chosen
@@ -62,4 +64,3 @@ def selection_roulette_2(self):
     sel_index = np.random.choice(range(self.size_pop), size=self.size_pop, p=sel_prob)
     self.Chrom = self.Chrom[sel_index, :]
     return self.Chrom
-
