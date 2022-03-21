@@ -10,7 +10,7 @@ from skimage.transform import resize
 from PIL import Image
 
 
-class SemSal:
+class AttnFusion:
     def __init__(self, RelTR, Saliency, args):
         self.num_persons = args.num_persons
         self.args = args
@@ -349,7 +349,7 @@ class SemSal:
             os.makedirs(output_img_dir, exist_ok=True)
             plt.savefig(output_img_name)
 
-    def _run_semsal(self, reltr_output, saliency_output, visualize=False):
+    def _run_fusion(self, reltr_output, saliency_output, visualize=False):
         # normalize attention heatmaps globally
         self._normalize_attention_heatmap(reltr_output)
         # normalize saliency heatmaps globally
@@ -423,7 +423,7 @@ class SemSal:
                         [reltr_name, saliency_name],
                         self.args.output_dir)
 
-            merged_output, priorities = self._run_semsal(
+            merged_output, priorities = self._run_fusion(
                 reltr_output, saliency_output, visualize=visualize)
 
             output[img_name] = merged_output

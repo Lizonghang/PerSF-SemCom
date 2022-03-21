@@ -14,11 +14,11 @@ class TextMatcher:
         self.output = {}
         self.repeat_counter = 0
 
-    def _collect_all_words(self, semsal_output):
+    def _collect_all_words(self, fuser_output):
         triplet_list_all = []
 
-        for img_name in semsal_output.keys():
-            merged_output_ = semsal_output[img_name]
+        for img_name in fuser_output.keys():
+            merged_output_ = fuser_output[img_name]
 
             for pid in range(self.num_persons):
                 query_ids = merged_output_[pid]["queries"]

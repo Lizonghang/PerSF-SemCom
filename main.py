@@ -5,12 +5,12 @@ import torch.cuda
 
 from RelTR import RelTR
 from Saliency import Saliency
-from SemSal import SemSal
+from AttnFusion import AttnFusion
 from TextMatch import TextMatcher
 from SemComm import SemComm
 from FadingChannel import FadingChannel
-from sko.GA import GA, RCGA
-from sko.tools import set_run_mode
+from PowerScheduler.GA import GA, RCGA
+from PowerScheduler.tools import set_run_mode
 
 
 def get_args_parser():
@@ -78,13 +78,13 @@ def get_args_parser():
     parser.add_argument('--return_interm_layers', action='store_true',
                         help="return the fpn if there is the tag")
 
-    # for semsal merge
+    # for fuser
     parser.add_argument('--merge_mode', choices=['weighted_sum', 'matrix_mul'], default='weighted_sum',
                         help='function to merge two attention maps, default to be simply sum')
     parser.add_argument('--alpha', default=0.2, type=float,  # NOTE
                         help='weight to merge RelTR and saliency map')
-    parser.add_argument('--num_persons', type=int, default=7,
-                        help='number of persons to simulate, only <=7 is supported currently')
+    parser.add_argument('--num_persons', type=int, default=3,
+                        help='number of persons to simulate, only <=3 is supported currently')
 
     # for semantic communication
     parser.add_argument('--drop_mode', choices=['no_drop', 'random_drop', 'schedule'],  # NOTE
@@ -113,13 +113,13 @@ def get_args_parser():
 
 def main(power_ratios):
     sem_comm = SemComm(args)
-    text_matcher = TextMatcher(semsal_output, suggest_query_text, args)
+    text_matcher = TextMatcher(fuser_output, suggest_query_text, args)
     fading_channel = FadingChannel(args.num_persons)
 
     for exp_iter in range(args.repeat_exp):
         # Send packets through loseless semantic comm network
         sent = sem_comm.send(
-            semsal_output, power_ratios, fading_channel, exp_iter)
+            fuser_output, power_ratios, fading_channel, exp_iter)
 
         # Evaluate match score on the user side
         text_matcher.receive(sent)
@@ -142,10 +142,10 @@ def genetic_blockbox_func(power_ratios):
     scores = main(power_ratios)
     target = np.prod(scores)
 
-    print("==========")
-    print("power probs:", power_ratios, " sum:", sum(power_ratios))
-    print("scores:", scores)
-    print("target:", target)
+    # print("==========")
+    # print("power probs:", power_ratios, " sum:", sum(power_ratios))
+    # print("scores:", scores)
+    # print("target:", target)
 
     # minimize -target, i.e., maximize target
     return -target
@@ -154,19 +154,19 @@ def genetic_blockbox_func(power_ratios):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(parents=[get_args_parser()])
     args = parser.parse_args()
-    assert args.num_persons <= 7, \
-        "Only <=7 persons are supported in this version"
+    assert args.num_persons <= 3, \
+        "Only <=3 persons are supported in this version"
 
     # Merge subject and object saliency
-    semsal = SemSal(RelTR, Saliency, args)
+    fuser = AttnFusion(RelTR, Saliency, args)
 
     if args.resume_pkl:
         # run with saved pickle files
-        semsal_output, suggest_query_text = semsal.fit(
+        fuser_output, suggest_query_text = fuser.fit(
             resume_pkl=True, save_pkl=False, save_txt=False, visualize=False)
     else:
         # first run
-        semsal_output, suggest_query_text = semsal.fit(
+        fuser_output, suggest_query_text = fuser.fit(
             resume_pkl=False, save_pkl=True, save_txt=True, visualize=True)
 
     print("Personalized query text:", suggest_query_text)

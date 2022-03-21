@@ -47,11 +47,11 @@ class SemComm:
 
         return query_ids_sorted, query_ids_dropped
 
-    def send(self, semsal_output, power_probs, fading_channel, exp_iter):
+    def send(self, fuser_output, power_probs, fading_channel, exp_iter):
         triplet_dict_per_person = {}
 
-        for img_name in semsal_output.keys():
-            merged_output_ = semsal_output[img_name]
+        for img_name in fuser_output.keys():
+            merged_output_ = fuser_output[img_name]
             triplet_dict_per_person[img_name] = {}
 
             for pid in range(self.num_persons):
