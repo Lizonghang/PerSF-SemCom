@@ -68,11 +68,11 @@ option, for example,
 
 ## Other options
 
-**1. Specify one custom image to process**
-> (container) $ python -W ignore main.py --img_name data/custom_img.jpg --output_dir data --resume_pkl 0 
+**1. Specify one custom image to visualize**
+> (container) $ python -W ignore main.py --input_dir data/{CUSTOM_DIR}/data --img_name {CUSTOM_IMG}.jpg --output_dir data/{CUSTOM_DIR}/output --resume_pkl 0 --repeat_exp 0
 
-You can set ``--repeat_exp=0`` and ``--use_bargain=0`` to visualize 
-the AttnFusion output only.
+This will visualize the AttnFusion output of this custom image, the figure
+is saved in ``--output_dir``.
 
 **2. Customize GPU/CPU for RelTR and Saliency preprocessing**
 
@@ -81,7 +81,8 @@ By default, we run RelTR inference on GPU 0 and others on CPU. You can use
 of CUDA on the host machine is not required. Otherwise, we can set 
 ``--device_reltr=cuda:1`` to run RelTR on other GPUs, similarly, set 
 ``--device_saliency=gpu:1`` to run Saliency on GPU 1. RelTR and Saliency 
-are not recommended to use the same CPU.
+are not recommended to use the same CPU. Note that these options only take 
+effect when ``--resume_pkl=0``.
 
 **3. Processing a custom dataset for the first time**
 
