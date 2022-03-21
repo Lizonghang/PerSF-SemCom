@@ -35,6 +35,10 @@ Default setting: Total transmitter power 3kW, number of users is 3,
 fusion coefficient alpha=0.2. Multiprocessing is default enabled for
 acceleration.
 
+Note: If you are using MacOS system, the option ``--platform linux/x86_64`` 
+should be added when using these docker commands. And CUDA is not supported
+on MacOS.
+
 ### Option 2: Build image from Dockerfile
 For a more flexible and lightweight refactoring of our experiment 
 environment, we provide a Dockerfile to help rebuild the docker image.
