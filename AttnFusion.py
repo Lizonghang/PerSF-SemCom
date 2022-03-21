@@ -252,11 +252,12 @@ class AttnFusion:
 
         # calculate average priorities for each triplet
         num_images = len(priorities_list)
-        for pid in range(self.num_persons):
-            for triplet in priority_sum[pid].keys():
-                num_ = counter[pid][triplet]
-                priority_sum[pid][triplet] /= num_
-                priority_sum[pid][triplet] *= math.log(num_, num_images)
+        if num_images > 1:
+            for pid in range(self.num_persons):
+                for triplet in priority_sum[pid].keys():
+                    num_ = counter[pid][triplet]
+                    priority_sum[pid][triplet] /= num_
+                    priority_sum[pid][triplet] *= math.log(num_, num_images)
 
         # use the triplet with maximum priority as the query text
         suggest_query_text = {}

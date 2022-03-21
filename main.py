@@ -169,6 +169,11 @@ if __name__ == '__main__':
         fuser_output, suggest_query_text = fuser.fit(
             resume_pkl=False, save_pkl=True, save_txt=True, visualize=True)
 
+    # repeat_exp=0 means visualization only
+    if not args.repeat_exp:
+        import sys
+        sys.exit(0)
+
     print("Personalized query text:", suggest_query_text)
 
     np.random.seed(1)
