@@ -32,36 +32,45 @@ it takes about 11.7GB of space on the disk.)
 > [Bargain:schedule+alpha0.2] Best target: 0.0175208450615 
 
 Default setting: Total transmitter power 3kW, number of users is 3, 
-fusion coefficient $\alpha=0.2$.
+fusion coefficient alpha=0.2. Multiprocessing is default enabled for
+acceleration.
 
 ### Option 2: Build image from Dockerfile
 For a more flexible and lightweight refactoring of our experiment 
 environment, we provide a Dockerfile to help rebuild the docker image.
 
+**1. Clone this Git repository.**
 
-First, clone this Git repository, manually download the [pretrained RelTR weights](https://drive.google.com/file/d/1id6oD_iwiNDD6HyCn2ORgRTIKkPD3tUD/view) and put it under ``RelTR/ckpt/``.
-Then, the docker image can be built by:
+**2. Download the [pretrained RelTR weights](https://drive.google.com/file/d/1id6oD_iwiNDD6HyCn2ORgRTIKkPD3tUD/view) and put it under ``RelTR/ckpt/``.**
 
-> $ sudo docker build -f Dockerfile -t semsal .
->
-> $ sudo docker run -it --rm --gpus all semsal bash
-> 
-> (container) $ python -W ignore main.py
+**3. Put custom data files under ``data/custom_data/data/``.**
 
-The process loads images from ``data/`` and saves output images and logs at ``output/``.
+**4. Build the docker image.**
+
+This Dockerfile requires CUDA>=10.0 on the host machine, and it will
+copy all files to the image.
+
+> $ sudo docker build -f Dockerfile -t persf-semcom:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0 . \
+> $ sudo docker run -dit --name persf-semcom --gpus all persf-semcom:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0 \
+> (container) $ python -W ignore main.py --input_dir data/custom_data/data --output_dir data/custom_data/output --resume_pkl 0
+
+This will load images from ``input_dir`` and save output to ``output_dir``, 
+including the outputs of RelTR and Saliency in pickle format, and the 
+visualization figures of AttnFusion. Set ``--resume_pkl=1`` to reuse 
+preprocessed outputs.
+
+You can also mount the data directory to the container, using the ``-v`` 
+option, for example,
+
+> $ sudo docker run -dit --name persf-semcom --gpus all -v {PATH_TO_PROJECT}/data:/root/data persf-semcom:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0
+
+## Other options
 
 
-Simply pull the pre-built docker image and run a container:
-
-> $ sudo docker pull lizonghango00o1/semsal:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0
-> 
-> $ sudo docker run -it --rm --gpus all lizonghango00o1/semsal:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0 bash
-> 
-> (container) $ python -W ignore main.py
-
-NOTE: You can use your own input images and synchronize output files to the host machine by mounting the host path to the container path:
-
-> $ sudo docker run -it --rm --gpus all -v /path/to/SemSal/data:/root/data -v /path/to/SemSal/output:/root/output lizonghango00o1/semsal:tf-cpu1.13.1-torch-gpu1.6.0-cuda10.0 bash
 
 # Acknowledgements
-This project is a combination of [RelTR](https://github.com/yrcong/RelTR), [Saliency](https://github.com/alexanderkroner/saliency), and [TextMatch](https://github.com/MachineLP/TextMatch).
+PerSF-SemCom uses [RelTR](https://github.com/yrcong/RelTR) and 
+[Saliency](https://github.com/alexanderkroner/saliency) as attention
+backends, and [TextMatch](https://github.com/MachineLP/TextMatch) as
+score estimation, and [scikit-opt](https://github.com/guofei9987/scikit-opt)
+as RCGA core. We sincerely thank them for their work that underpins this research.
