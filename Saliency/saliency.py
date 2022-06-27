@@ -19,10 +19,10 @@ class Saliency:
         self.person_id = pid
         self.args = args
         self.device = args.device_saliency
-        datasets_list = [
+        self.datasets_list = [
             "salicon", "mit1003", "dutomron",
             "cat2000", "pascals", "osie", "fiwi"]
-        self.dataset = datasets_list[pid]
+        self.dataset = self.datasets_list[pid]
         self.graph_def = self._load_tf_graph(self.dataset)
 
     def _load_tf_graph(self, dataset):

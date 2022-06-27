@@ -25,12 +25,13 @@ class AttnFusion:
         return output
 
     def _run_multi_saliency(self, img_path):
+        num_models = len(self.Saliency.datasets_list)
         if not hasattr(self, "saliency_list"):
             self.saliency_list = [self.Saliency(pid, self.args)
-                                  for pid in range(self.num_persons)]
+                                  for pid in range(num_models)]
 
         output = []
-        for pid in range(self.num_persons):
+        for pid in range(num_models):
             # clear session to avoid graph conflicts
             tf.keras.backend.clear_session()
             # run inference
@@ -103,15 +104,14 @@ class AttnFusion:
 
     def _merge_outputs(self, reltr_output, saliency_output):
         query_ids = reltr_output["queries"]
-        num_persons = len(saliency_output)
 
         merged_output = {
             "reltr_output": reltr_output,
             "saliency_output": saliency_output,
-            "num_persons": num_persons
+            "num_persons": self.num_persons
         }
 
-        for pid in range(num_persons):
+        for pid in range(self.num_persons):
             merged_output[pid] = {"priority": None}
 
             # rescale saliency attention map
@@ -415,7 +415,7 @@ class AttnFusion:
                 # RelTR inference
                 reltr_output = self._run_reltr(img_path)
                 if not reltr_output: continue
-                # Saliency inference (7 persons)
+                # Saliency inference
                 saliency_output = self._run_multi_saliency(img_path)
                 # save outputs
                 if save_pkl:
