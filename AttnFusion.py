@@ -25,7 +25,7 @@ class AttnFusion:
         return output
 
     def _run_multi_saliency(self, img_path):
-        num_models = len(self.Saliency.datasets_list)
+        num_models = 7
         if not hasattr(self, "saliency_list"):
             self.saliency_list = [self.Saliency(pid, self.args)
                                   for pid in range(num_models)]
