@@ -5,6 +5,7 @@
 
 
 import numpy as np
+from tqdm import tqdm
 from .base import SkoBase
 from .tools import func_transformer
 from .operators import crossover, mutation, ranking, selection
@@ -77,9 +78,7 @@ class GeneticAlgorithmBase(SkoBase, metaclass=ABCMeta):
     def run(self, max_iter=None):
         self.max_iter = max_iter or self.max_iter
         best = []
-        for i in range(self.max_iter):
-            print(f"GA Iteration {i + 1}/{self.max_iter}")
-
+        for i in tqdm(range(self.max_iter)):
             self.X = self.chrom2x(self.Chrom)
             self.Y = self.x2y()
             self.ranking()
