@@ -57,6 +57,7 @@ RUN pip install torch==1.6.0 \
 
 RUN pip install tensorflow==1.13.1 \
 #                tensorflow-gpu==1.13.1 \
+                protobuf==3.20.0 \
                 matplotlib==3.0.3 \
                 requests==2.21.0 \
                 scikit-image==0.14.2 \
